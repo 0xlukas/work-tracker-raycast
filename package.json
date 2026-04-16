@@ -1,0 +1,63 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "work-tracker",
+  "title": "Work Tracker",
+  "description": "Track work hours, view balances, and manage time entries for the WorkTracker app",
+  "icon": "icon.png",
+  "author": "0xlukas",
+  "categories": ["Productivity"],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "add-entry",
+      "title": "Add Work Entry",
+      "subtitle": "Work Tracker",
+      "description": "Add a new time entry for today",
+      "mode": "view"
+    },
+    {
+      "name": "view-today",
+      "title": "View Today",
+      "subtitle": "Work Tracker",
+      "description": "View today's time entries and daily summary",
+      "mode": "view"
+    },
+    {
+      "name": "menu-bar",
+      "title": "Work Balance",
+      "subtitle": "Work Tracker",
+      "description": "Show today's hours and year-to-date balance in the menu bar",
+      "mode": "menu-bar",
+      "interval": "10m"
+    },
+    {
+      "name": "daily-quote",
+      "title": "Daily Quote",
+      "subtitle": "Work Tracker",
+      "description": "Show today's motivational quote",
+      "mode": "no-view"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.93.0",
+    "@raycast/utils": "^1.19.0",
+    "better-sqlite3": "^11.0.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "20.8.10",
+    "@types/react": "18.3.3",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.4.5"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "prepublishOnly": "echo \"Error: no publish\" && exit 1",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
