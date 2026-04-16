@@ -1,5 +1,5 @@
 import { List, ActionPanel, Action, Icon, Color, confirmAlert, Alert, showToast, Toast } from "@raycast/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getSegmentsForDate, getVacationDaysForYear, buildVacationLookup } from "./lib/queries";
 import { deleteSegment } from "./lib/mutations";
 import { WorkHoursCalculator, formatHours } from "./lib/calculator";
@@ -13,12 +13,15 @@ export default function ViewToday() {
   const [expectedHours, setExpectedHours] = useState(8);
   const [holidayName, setHolidayName] = useState<string | null>(null);
 
-  function loadData() {
+  const loadData = useCallback(async () => {
     try {
+      setIsLoading(true);
       const now = new Date();
       const { year } = getZurichComponents(now);
-      const todaySegments = getSegmentsForDate(now);
-      const vacations = getVacationDaysForYear(year);
+      const [todaySegments, vacations] = await Promise.all([
+        getSegmentsForDate(now),
+        getVacationDaysForYear(year),
+      ]);
       const vacationLookup = buildVacationLookup(vacations);
 
       const calculator = new WorkHoursCalculator([year]);
@@ -33,11 +36,11 @@ export default function ViewToday() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const dateStr = new Intl.DateTimeFormat("en-CH", {
     timeZone: "Europe/Zurich",
@@ -60,7 +63,7 @@ export default function ViewToday() {
       try {
         deleteSegment(segment.id);
         showToast({ style: Toast.Style.Success, title: "Entry deleted" });
-        loadData();
+        await loadData();
       } catch (error) {
         showToast({ style: Toast.Style.Failure, title: "Failed to delete", message: String(error) });
       }

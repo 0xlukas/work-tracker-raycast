@@ -15,21 +15,23 @@ export default function AddEntry() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const allProjects = getAllProjects();
-      setProjects(allProjects);
-      // Default to "Other" project
-      const other = allProjects.find((p) => p.name === "Other");
-      if (other) {
-        setSelectedProject(String(other.id));
-      } else if (allProjects.length > 0) {
-        setSelectedProject(String(allProjects[0].id));
+    (async () => {
+      try {
+        const allProjects = await getAllProjects();
+        setProjects(allProjects);
+        // Default to "Other" project
+        const other = allProjects.find((p) => p.name === "Other");
+        if (other) {
+          setSelectedProject(String(other.id));
+        } else if (allProjects.length > 0) {
+          setSelectedProject(String(allProjects[0].id));
+        }
+      } catch (error) {
+        showToast({ style: Toast.Style.Failure, title: "Failed to load projects", message: String(error) });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      showToast({ style: Toast.Style.Failure, title: "Failed to load projects", message: String(error) });
-    } finally {
-      setIsLoading(false);
-    }
+    })();
   }, []);
 
   function handleSubmit() {

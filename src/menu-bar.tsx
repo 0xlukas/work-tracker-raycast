@@ -1,72 +1,87 @@
-import { MenuBarExtra, Icon, open } from "@raycast/api";
+import { MenuBarExtra, Icon } from "@raycast/api";
+import { useState, useEffect } from "react";
 import { getSegmentsForYear, getSegmentsForDate, getVacationDaysForYear, buildVacationLookup } from "./lib/queries";
 import { readTrackingStartDate } from "./lib/db";
 import { WorkHoursCalculator, formatHours, formatBalance } from "./lib/calculator";
 import { getZurichComponents, startOfDayZurich } from "./lib/dates";
 
+interface BalanceData {
+  todayHoursStr: string;
+  expectedHoursStr: string;
+  todayBalanceStr: string;
+  ytdBalanceStr: string;
+  menuTitle: string;
+  holidayName: string | null;
+}
+
 export default function WorkBalance() {
-  let todayHoursStr = "...";
-  let expectedHoursStr = "...";
-  let todayBalanceStr = "...";
-  let ytdBalanceStr = "...";
-  let menuTitle = "\u23F1 ...";
-  let holidayName: string | null = null;
-  let isError = false;
-  let errorMessage = "";
+  const [data, setData] = useState<BalanceData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  try {
-    const now = new Date();
-    const { year } = getZurichComponents(now);
+  useEffect(() => {
+    (async () => {
+      try {
+        const now = new Date();
+        const { year } = getZurichComponents(now);
 
-    const todaySegments = getSegmentsForDate(now);
-    const yearSegments = getSegmentsForYear(year);
-    const vacations = getVacationDaysForYear(year);
-    const vacationLookup = buildVacationLookup(vacations);
+        const [todaySegments, yearSegments, vacations] = await Promise.all([
+          getSegmentsForDate(now),
+          getSegmentsForYear(year),
+          getVacationDaysForYear(year),
+        ]);
+        const vacationLookup = buildVacationLookup(vacations);
 
-    const calculator = new WorkHoursCalculator([year]);
+        const calculator = new WorkHoursCalculator([year]);
 
-    // Today
-    const { daySummary, todayHours } = calculator.todaySummary(vacationLookup, todaySegments);
-    todayHoursStr = formatHours(todayHours);
-    expectedHoursStr = formatHours(daySummary.expectedHours);
-    todayBalanceStr = formatBalance(todayHours - daySummary.expectedHours);
-    holidayName = daySummary.holidayName;
+        // Today
+        const { daySummary, todayHours } = calculator.todaySummary(vacationLookup, todaySegments);
 
-    // Year-to-date
-    const trackingStart = readTrackingStartDate();
-    const yearStart = trackingStart ?? new Date(Date.UTC(year, 0, 1));
-    const today = startOfDayZurich(now);
+        // Year-to-date
+        const trackingStart = readTrackingStartDate();
+        const yearStart = trackingStart ?? new Date(Date.UTC(year, 0, 1));
+        const today = startOfDayZurich(now);
+        const ytdSummary = calculator.periodSummary(yearStart, today, vacationLookup, yearSegments);
 
-    const ytdSummary = calculator.periodSummary(yearStart, today, vacationLookup, yearSegments);
-    ytdBalanceStr = formatBalance(ytdSummary.balance);
+        // Menu bar title: show today's hours compactly
+        const h = Math.floor(todayHours);
+        const m = Math.round((todayHours - h) * 60);
 
-    // Menu bar title: show today's hours compactly
-    const h = Math.floor(todayHours);
-    const m = Math.round((todayHours - h) * 60);
-    menuTitle = `${h}:${m.toString().padStart(2, "0")}`;
-  } catch (error) {
-    isError = true;
-    errorMessage = String(error);
-    menuTitle = "\u23F1 \u26A0";
-  }
+        setData({
+          todayHoursStr: formatHours(todayHours),
+          expectedHoursStr: formatHours(daySummary.expectedHours),
+          todayBalanceStr: formatBalance(todayHours - daySummary.expectedHours),
+          ytdBalanceStr: formatBalance(ytdSummary.balance),
+          menuTitle: `${h}:${m.toString().padStart(2, "0")}`,
+          holidayName: daySummary.holidayName,
+        });
+      } catch (err) {
+        setError(String(err));
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, []);
+
+  const menuTitle = data?.menuTitle ?? (error ? "\u26A0" : "...");
 
   return (
-    <MenuBarExtra icon={Icon.Clock} title={menuTitle} tooltip="Work Tracker Balance">
-      {isError ? (
-        <MenuBarExtra.Item title={`Error: ${errorMessage}`} icon={Icon.ExclamationMark} />
-      ) : (
+    <MenuBarExtra icon={Icon.Clock} title={menuTitle} tooltip="Work Tracker Balance" isLoading={isLoading}>
+      {error ? (
+        <MenuBarExtra.Item title={`Error: ${error}`} icon={Icon.ExclamationMark} />
+      ) : data ? (
         <>
           <MenuBarExtra.Section title="Today">
-            <MenuBarExtra.Item title={`Worked: ${todayHoursStr}`} icon={Icon.Clock} />
-            <MenuBarExtra.Item title={`Expected: ${expectedHoursStr}`} icon={Icon.Target} />
-            <MenuBarExtra.Item title={`Balance: ${todayBalanceStr}`} icon={Icon.BarChart} />
-            {holidayName && <MenuBarExtra.Item title={holidayName} icon={Icon.Star} />}
+            <MenuBarExtra.Item title={`Worked: ${data.todayHoursStr}`} icon={Icon.Clock} />
+            <MenuBarExtra.Item title={`Expected: ${data.expectedHoursStr}`} icon={Icon.Target} />
+            <MenuBarExtra.Item title={`Balance: ${data.todayBalanceStr}`} icon={Icon.BarChart} />
+            {data.holidayName && <MenuBarExtra.Item title={data.holidayName} icon={Icon.Star} />}
           </MenuBarExtra.Section>
           <MenuBarExtra.Section title="Year to Date">
-            <MenuBarExtra.Item title={`Balance: ${ytdBalanceStr}`} icon={Icon.BarChart} />
+            <MenuBarExtra.Item title={`Balance: ${data.ytdBalanceStr}`} icon={Icon.BarChart} />
           </MenuBarExtra.Section>
         </>
-      )}
+      ) : null}
     </MenuBarExtra>
   );
 }

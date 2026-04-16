@@ -2,7 +2,6 @@ import { execSync } from "child_process";
 import os from "os";
 import path from "path";
 import fs from "fs";
-import Database from "better-sqlite3";
 
 const APP_DEFAULTS_DOMAIN = "com.fbg.work-tracker";
 const DEFAULT_DIR_NAME = "WorkTracker";
@@ -36,7 +35,7 @@ function resolveDbPath(): string {
 
 let cachedDbPath: string | null = null;
 
-function getDbPath(): string {
+export function getDbPath(): string {
   if (!cachedDbPath) {
     cachedDbPath = resolveDbPath();
   }
@@ -44,25 +43,27 @@ function getDbPath(): string {
 }
 
 /**
- * Open a read-only database connection.
- * Caller is responsible for closing the connection.
+ * Execute a write SQL script against the database using the sqlite3 CLI.
+ * Wraps the script in a transaction automatically.
  */
-export function openReadonly(): Database.Database {
+export function executeSQLWrite(script: string): void {
   const dbPath = getDbPath();
-  const db = new Database(dbPath, { readonly: true });
-  db.pragma("busy_timeout = 5000");
-  return db;
+  const fullScript = `BEGIN IMMEDIATE;\n${script}\nCOMMIT;`;
+  execSync(`sqlite3 "${dbPath}" "${fullScript.replace(/"/g, '\\"')}"`, {
+    encoding: "utf-8",
+    timeout: 10000,
+  });
 }
 
 /**
- * Open a read-write database connection.
- * Caller is responsible for closing the connection.
+ * Execute a write SQL script and return the output (for queries that produce results).
  */
-export function openReadWrite(): Database.Database {
+export function executeSQLWriteWithOutput(script: string): string {
   const dbPath = getDbPath();
-  const db = new Database(dbPath);
-  db.pragma("busy_timeout = 5000");
-  return db;
+  return execSync(`sqlite3 "${dbPath}" "${script.replace(/"/g, '\\"')}"`, {
+    encoding: "utf-8",
+    timeout: 10000,
+  }).trim();
 }
 
 /**
