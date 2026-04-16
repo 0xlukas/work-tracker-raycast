@@ -35,7 +35,7 @@
       "title": "Daily Quote",
       "subtitle": "Work Tracker",
       "description": "Show today's motivational quote",
-      "mode": "no-view"
+      "mode": "view"
     }
   ],
   "dependencies": {

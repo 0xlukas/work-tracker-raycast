@@ -1,8 +1,47 @@
-import { showHUD } from "@raycast/api";
+import { Detail, ActionPanel, Action, Icon, popToRoot } from "@raycast/api";
 import { quoteOfTheDay } from "./lib/quotes";
 
-export default async function DailyQuote() {
+export default function DailyQuote() {
   const quote = quoteOfTheDay();
-  const source = quote.source ? ` (${quote.source})` : "";
-  await showHUD(`\u201C${quote.text}\u201D \u2014 ${quote.thinker}${source}`);
+
+  const markdown = [
+    "<br><br><br>",
+    "",
+    "# \u2605",
+    "",
+    "<br>",
+    "",
+    `> ### *\u201C${quote.text}\u201D*`,
+    "",
+    "<br>",
+    "",
+    `**\u2014 ${quote.thinker}**`,
+    "",
+    quote.source ? `*${quote.source}*` : "",
+  ].join("\n");
+
+  return (
+    <Detail
+      markdown={markdown}
+      navigationTitle="Daily Quote"
+      metadata={
+        <Detail.Metadata>
+          <Detail.Metadata.Label title="Thinker" text={quote.thinker} icon={Icon.Person} />
+          {quote.source && <Detail.Metadata.Separator />}
+          {quote.source && <Detail.Metadata.Label title="Source" text={quote.source} icon={Icon.Book} />}
+        </Detail.Metadata>
+      }
+      actions={
+        <ActionPanel>
+          <Action title="Dismiss" icon={Icon.XMarkCircle} onAction={popToRoot} />
+          <Action
+            title="Dismiss (Space)"
+            icon={Icon.XMarkCircle}
+            onAction={popToRoot}
+            shortcut={{ modifiers: [], key: "space" }}
+          />
+        </ActionPanel>
+      }
+    />
+  );
 }
