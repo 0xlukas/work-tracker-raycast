@@ -54,23 +54,6 @@ export async function getSegmentsForDate(date: Date): Promise<WorkSegment[]> {
   return rows.map(mapSegment);
 }
 
-export async function getSegmentsForYear(year: number): Promise<WorkSegment[]> {
-  const dbPath = getDbPath();
-  const yearStartTs = dateToNSTimestamp(new Date(Date.UTC(year, 0, 1)));
-  const yearEndTs = dateToNSTimestamp(new Date(Date.UTC(year + 1, 0, 1)));
-
-  const rows = await executeSQL<RawSegment>(
-    dbPath,
-    `SELECT s.Z_PK, s.ZDATE, s.ZSTARTTIME, s.ZENDTIME, s.ZDURATIONHOURS, s.ZPROJECT, p.ZNAME
-     FROM ZWORKSEGMENT s
-     LEFT JOIN ZPROJECT p ON s.ZPROJECT = p.Z_PK
-     WHERE s.ZDATE >= ${yearStartTs} AND s.ZDATE < ${yearEndTs}
-     ORDER BY s.ZSTARTTIME ASC`,
-  );
-
-  return rows.map(mapSegment);
-}
-
 export async function getAllProjects(): Promise<Project[]> {
   const dbPath = getDbPath();
 

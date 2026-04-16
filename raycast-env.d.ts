@@ -17,8 +17,6 @@ declare namespace Preferences {
   export type AddEntry = ExtensionPreferences & {}
   /** Preferences accessible in the `view-today` command */
   export type ViewToday = ExtensionPreferences & {}
-  /** Preferences accessible in the `menu-bar` command */
-  export type MenuBar = ExtensionPreferences & {}
   /** Preferences accessible in the `daily-quote` command */
   export type DailyQuote = ExtensionPreferences & {}
 }
@@ -28,8 +26,6 @@ declare namespace Arguments {
   export type AddEntry = {}
   /** Arguments passed to the `view-today` command */
   export type ViewToday = {}
-  /** Arguments passed to the `menu-bar` command */
-  export type MenuBar = {}
   /** Arguments passed to the `daily-quote` command */
   export type DailyQuote = {}
 }

@@ -46,41 +46,4 @@ export function getDbPath(): string {
  * Execute a write SQL script against the database using the sqlite3 CLI.
  * Wraps the script in a transaction automatically.
  */
-export function executeSQLWrite(script: string): void {
-  const dbPath = getDbPath();
-  const fullScript = `BEGIN IMMEDIATE;\n${script}\nCOMMIT;`;
-  execSync(`sqlite3 "${dbPath}" "${fullScript.replace(/"/g, '\\"')}"`, {
-    encoding: "utf-8",
-    timeout: 10000,
-  });
-}
 
-/**
- * Execute a write SQL script and return the output (for queries that produce results).
- */
-export function executeSQLWriteWithOutput(script: string): string {
-  const dbPath = getDbPath();
-  return execSync(`sqlite3 "${dbPath}" "${script.replace(/"/g, '\\"')}"`, {
-    encoding: "utf-8",
-    timeout: 10000,
-  }).trim();
-}
-
-/**
- * Read the tracking start date from UserDefaults.
- * Returns null if not set.
- */
-export function readTrackingStartDate(): Date | null {
-  try {
-    const raw = execSync(`defaults read ${APP_DEFAULTS_DOMAIN} trackingStartDate 2>/dev/null`, {
-      encoding: "utf-8",
-    }).trim();
-    if (raw) {
-      // Format: "2026-03-31 22:00:00 +0000"
-      return new Date(raw.replace(" +0000", "Z").replace(" ", "T"));
-    }
-  } catch {
-    // Not set
-  }
-  return null;
-}

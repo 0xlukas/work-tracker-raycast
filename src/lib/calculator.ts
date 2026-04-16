@@ -1,6 +1,6 @@
-import { startOfDayZurich, isWeekendZurich, daysThroughZurich, getZurichComponents } from "./dates";
+import { startOfDayZurich, isWeekendZurich } from "./dates";
 import { holidayLookup, holidayNameLookup } from "./holidays";
-import type { DaySummary, PeriodSummary, HolidayType, WorkSegment } from "./types";
+import type { DaySummary, HolidayType, WorkSegment } from "./types";
 
 /**
  * Port of WorkHoursCalculator.swift.
@@ -125,80 +125,6 @@ export class WorkHoursCalculator {
     };
   }
 
-  periodSummary(
-    from: Date,
-    to: Date,
-    vacationLookup: Map<number, boolean>,
-    segments: WorkSegment[],
-  ): PeriodSummary {
-    const days = daysThroughZurich(from, to);
-    const fromNorm = startOfDayZurich(from).getTime();
-    const toNorm = startOfDayZurich(to).getTime();
-
-    let expectedHours = 0;
-    let workingDays = 0;
-    let holidayDays = 0;
-    let halfDayHolidays = 0;
-    let vacationDayCount = 0;
-
-    for (const day of days) {
-      const summary = this.classify(day, vacationLookup);
-      expectedHours += summary.expectedHours;
-
-      if (summary.isWeekend) continue;
-
-      // Vacation on a half-day holiday: counts as 0.5 vacation + 1 half-day holiday
-      if (summary.isVacation && summary.isHalfDayHoliday) {
-        vacationDayCount += 0.5;
-        halfDayHolidays += 1;
-        continue;
-      }
-
-      // Half-day vacation on regular day: counts as 0.5
-      if (summary.isVacation && summary.isHalfDayVacation) {
-        vacationDayCount += 0.5;
-        workingDays += 1;
-        continue;
-      }
-
-      if (summary.isVacation) {
-        vacationDayCount += 1;
-        continue;
-      }
-      if (summary.isHoliday && !summary.isHalfDayHoliday) {
-        holidayDays += 1;
-        continue;
-      }
-      if (summary.isHalfDayHoliday) {
-        halfDayHolidays += 1;
-      }
-      workingDays += 1;
-    }
-
-    // Extra vacation beyond 25 days adds to expected hours (unpaid leave penalty)
-    if (vacationDayCount > 25) {
-      const extraDays = vacationDayCount - 25;
-      expectedHours += extraDays * 8;
-    }
-
-    const actualHours = segments
-      .filter((seg) => {
-        const d = startOfDayZurich(seg.date).getTime();
-        return d >= fromNorm && d <= toNorm;
-      })
-      .reduce((sum, seg) => sum + seg.durationHours, 0);
-
-    return {
-      expectedHours,
-      actualHours,
-      balance: actualHours - expectedHours,
-      workingDays,
-      holidayDays,
-      halfDayHolidays,
-      vacationDays: vacationDayCount,
-    };
-  }
-
   todaySummary(
     vacationLookup: Map<number, boolean>,
     segments: WorkSegment[],
@@ -222,7 +148,3 @@ export function formatHours(hours: number): string {
   return `${sign}${h}h ${m.toString().padStart(2, "0")}m`;
 }
 
-export function formatBalance(hours: number): string {
-  const sign = hours >= 0 ? "+" : "";
-  return `${sign}${formatHours(hours)}`;
-}

@@ -5,17 +5,13 @@ export default function DailyQuote() {
   const quote = quoteOfTheDay();
 
   const markdown = [
-    "<br><br><br>",
-    "",
     "# \u2605",
     "",
-    "<br>",
+    `> ## *\u201C${quote.text}\u201D*`,
     "",
-    `> ### *\u201C${quote.text}\u201D*`,
+    "---",
     "",
-    "<br>",
-    "",
-    `**\u2014 ${quote.thinker}**`,
+    `### \u2014 ${quote.thinker}`,
     "",
     quote.source ? `*${quote.source}*` : "",
   ].join("\n");

@@ -23,14 +23,6 @@
       "mode": "view"
     },
     {
-      "name": "menu-bar",
-      "title": "Work Balance",
-      "subtitle": "Work Tracker",
-      "description": "Show today's hours and year-to-date balance in the menu bar",
-      "mode": "menu-bar",
-      "interval": "10m"
-    },
-    {
       "name": "daily-quote",
       "title": "Daily Quote",
       "subtitle": "Work Tracker",
