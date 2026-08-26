@@ -28,12 +28,7 @@ export function easterSunday(year: number): Date {
  * weekday: 0=Sunday, 1=Monday, ..., 6=Saturday (JS convention).
  */
 function nthWeekday(nth: number, weekday: number, month: number, year: number): Date {
-  // Start from the 1st of the month
-  let date = makeDateZurich(year, month, 1);
-  const dayOfWeek = date.getUTCDay !== undefined ? new Date(date).getDay() : 0;
-
-  // Find the first occurrence of the target weekday
-  // We need to get the day of week in Zurich timezone
+  // Find the nth occurrence of the target weekday, in Zurich timezone
   const fmt = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Zurich", weekday: "short" });
   const weekdayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const targetName = weekdayNames[weekday];

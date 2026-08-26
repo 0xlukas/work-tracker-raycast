@@ -1,0 +1,3 @@
+# One quote per line mirrors DailyQuote.swift entry-for-entry, which keeps future
+# syncs with the app diffable. Prettier would explode each into 5 lines.
+src/lib/quotes.ts
