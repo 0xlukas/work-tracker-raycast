@@ -1,9 +1,10 @@
 import { List, ActionPanel, Action, Icon, Color, confirmAlert, Alert, showToast, Toast } from "@raycast/api";
 import { useState, useEffect, useCallback } from "react";
-import { getSegmentsForDate, getVacationDaysForYear, buildVacationLookup } from "./lib/queries";
+import { getSegmentsForDate, getAbsencesForYear, buildAbsenceLookup } from "./lib/queries";
 import { deleteSegment } from "./lib/mutations";
-import { WorkHoursCalculator, formatHours } from "./lib/calculator";
+import { WorkHoursCalculator, daySummaryLabel, formatHours } from "./lib/calculator";
 import { getZurichComponents } from "./lib/dates";
+import { formatTimeOfDay } from "./lib/timeinput";
 import type { WorkSegment } from "./lib/types";
 
 export default function ViewToday() {
@@ -11,26 +12,23 @@ export default function ViewToday() {
   const [isLoading, setIsLoading] = useState(true);
   const [todayHours, setTodayHours] = useState(0);
   const [expectedHours, setExpectedHours] = useState(8);
-  const [holidayName, setHolidayName] = useState<string | null>(null);
+  const [dayLabel, setDayLabel] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       const now = new Date();
       const { year } = getZurichComponents(now);
-      const [todaySegments, vacations] = await Promise.all([
-        getSegmentsForDate(now),
-        getVacationDaysForYear(year),
-      ]);
-      const vacationLookup = buildVacationLookup(vacations);
+      const [todaySegments, absences] = await Promise.all([getSegmentsForDate(now), getAbsencesForYear(year)]);
+      const absenceLookup = buildAbsenceLookup(absences);
 
       const calculator = new WorkHoursCalculator([year]);
-      const { daySummary, todayHours: hours } = calculator.todaySummary(vacationLookup, todaySegments);
+      const { daySummary, todayHours: hours } = calculator.todaySummary(absenceLookup, todaySegments);
 
       setSegments(todaySegments);
       setTodayHours(hours);
       setExpectedHours(daySummary.expectedHours);
-      setHolidayName(daySummary.holidayName);
+      setDayLabel(daySummaryLabel(daySummary));
     } catch (error) {
       showToast({ style: Toast.Style.Failure, title: "Failed to load data", message: String(error) });
     } finally {
@@ -74,7 +72,7 @@ export default function ViewToday() {
     <List isLoading={isLoading} navigationTitle="View Today">
       <List.Section
         title={dateStr}
-        subtitle={`${formatHours(todayHours)} / ${formatHours(expectedHours)}${holidayName ? ` \u2022 ${holidayName}` : ""}`}
+        subtitle={`${formatHours(todayHours)} / ${formatHours(expectedHours)}${dayLabel ? ` \u2022 ${dayLabel}` : ""}`}
       >
         {segments.length === 0 && !isLoading ? (
           <List.EmptyView
@@ -110,11 +108,5 @@ export default function ViewToday() {
 }
 
 function formatTimeRange(seg: WorkSegment): string {
-  const fmt = new Intl.DateTimeFormat("en-CH", {
-    timeZone: "Europe/Zurich",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  return `${fmt.format(seg.startTime)} \u2013 ${fmt.format(seg.endTime)}`;
+  return `${formatTimeOfDay(seg.startTime)} \u2013 ${formatTimeOfDay(seg.endTime)}`;
 }

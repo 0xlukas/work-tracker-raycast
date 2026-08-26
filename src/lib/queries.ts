@@ -1,7 +1,7 @@
 import { executeSQL } from "@raycast/utils";
 import { getDbPath } from "./db";
 import { nsTimestampToDate, dateToNSTimestamp, startOfDayZurich } from "./dates";
-import type { WorkSegment, Project, VacationDay } from "./types";
+import type { AbsenceEntry, AbsenceType, WorkSegment, Project, VacationDay } from "./types";
 
 interface RawSegment {
   Z_PK: number;
@@ -23,6 +23,7 @@ interface RawVacation {
   Z_PK: number;
   ZDATE: number;
   ZISHALFDAY: number;
+  ZTYPE: string | null;
 }
 
 function mapSegment(r: RawSegment): WorkSegment {
@@ -57,10 +58,7 @@ export async function getSegmentsForDate(date: Date): Promise<WorkSegment[]> {
 export async function getAllProjects(): Promise<Project[]> {
   const dbPath = getDbPath();
 
-  const rows = await executeSQL<RawProject>(
-    dbPath,
-    "SELECT Z_PK, ZNAME, ZCREATEDAT FROM ZPROJECT ORDER BY ZNAME ASC",
-  );
+  const rows = await executeSQL<RawProject>(dbPath, "SELECT Z_PK, ZNAME, ZCREATEDAT FROM ZPROJECT ORDER BY ZNAME ASC");
 
   return rows.map((r) => ({
     id: r.Z_PK,
@@ -69,31 +67,40 @@ export async function getAllProjects(): Promise<Project[]> {
   }));
 }
 
-export async function getVacationDaysForYear(year: number): Promise<VacationDay[]> {
+export async function getAbsencesForYear(year: number): Promise<VacationDay[]> {
   const dbPath = getDbPath();
   const yearStartTs = dateToNSTimestamp(new Date(Date.UTC(year, 0, 1)));
   const yearEndTs = dateToNSTimestamp(new Date(Date.UTC(year + 1, 0, 1)));
 
   const rows = await executeSQL<RawVacation>(
     dbPath,
-    `SELECT Z_PK, ZDATE, ZISHALFDAY FROM ZVACATIONDAY WHERE ZDATE >= ${yearStartTs} AND ZDATE < ${yearEndTs} ORDER BY ZDATE ASC`,
+    `SELECT Z_PK, ZDATE, ZISHALFDAY, ZTYPE FROM ZVACATIONDAY WHERE ZDATE >= ${yearStartTs} AND ZDATE < ${yearEndTs} ORDER BY ZDATE ASC`,
   );
 
   return rows.map((r) => ({
     id: r.Z_PK,
     date: nsTimestampToDate(r.ZDATE),
     isHalfDay: r.ZISHALFDAY === 1,
+    type: resolveAbsenceType(r.ZTYPE),
   }));
 }
 
 /**
- * Build a vacation lookup: date (start of day Zurich) timestamp -> isHalfDay
+ * Mirror of `VacationDay.resolvedType`: rows written before schema V2 have no stored
+ * type and count as vacation.
  */
-export function buildVacationLookup(vacations: VacationDay[]): Map<number, boolean> {
-  const lookup = new Map<number, boolean>();
-  for (const v of vacations) {
-    const key = startOfDayZurich(v.date).getTime();
-    lookup.set(key, v.isHalfDay);
+function resolveAbsenceType(raw: string | null): AbsenceType {
+  return raw === "sick" ? "sick" : "vacation";
+}
+
+/**
+ * Build an absence lookup: date (start of day Zurich) timestamp -> absence entry.
+ */
+export function buildAbsenceLookup(absences: VacationDay[]): Map<number, AbsenceEntry> {
+  const lookup = new Map<number, AbsenceEntry>();
+  for (const a of absences) {
+    const key = startOfDayZurich(a.date).getTime();
+    lookup.set(key, { type: a.type, isHalfDay: a.isHalfDay });
   }
   return lookup;
 }

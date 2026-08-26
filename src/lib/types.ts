@@ -14,9 +14,20 @@ export interface Project {
   createdAt: Date;
 }
 
+/** Mirrors AbsenceType in SchemaMigration.swift (stored in ZVACATIONDAY.ZTYPE). */
+export type AbsenceType = "vacation" | "sick";
+
 export interface VacationDay {
   id: number;
   date: Date;
+  isHalfDay: boolean;
+  /** Legacy rows have no stored type; they resolve to "vacation" (cf. `resolvedType`). */
+  type: AbsenceType;
+}
+
+/** Port of AbsenceEntry in WorkHoursCalculator.swift. */
+export interface AbsenceEntry {
+  type: AbsenceType;
   isHalfDay: boolean;
 }
 
@@ -36,6 +47,8 @@ export interface DaySummary {
   isHalfDayHoliday: boolean;
   isVacation: boolean;
   isHalfDayVacation: boolean;
+  isSick: boolean;
+  isHalfDaySick: boolean;
   isWeekend: boolean;
 }
 
@@ -47,6 +60,7 @@ export interface PeriodSummary {
   holidayDays: number;
   halfDayHolidays: number;
   vacationDays: number;
+  sickDays: number;
 }
 
 export interface Quote {
