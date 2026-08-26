@@ -41,8 +41,3 @@ export function getDbPath(): string {
   }
   return cachedDbPath;
 }
-
-/**
- * Execute a write SQL script against the database using the sqlite3 CLI.
- * Wraps the script in a transaction automatically.
- */

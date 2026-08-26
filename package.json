@@ -12,7 +12,7 @@
       "name": "add-entry",
       "title": "Add Work Entry",
       "subtitle": "Work Tracker",
-      "description": "Add a new time entry for today",
+      "description": "Add a time entry for any day, pre-filled from the day's last entry",
       "mode": "view"
     },
     {

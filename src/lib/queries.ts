@@ -1,6 +1,6 @@
 import { executeSQL } from "@raycast/utils";
 import { getDbPath } from "./db";
-import { nsTimestampToDate, dateToNSTimestamp, startOfDayZurich } from "./dates";
+import { nsTimestampToDate, dateToNSTimestamp, makeDateZurich, startOfDayZurich } from "./dates";
 import type { AbsenceEntry, AbsenceType, WorkSegment, Project, VacationDay } from "./types";
 
 interface RawSegment {
@@ -69,13 +69,27 @@ export async function getAllProjects(): Promise<Project[]> {
 
 export async function getAbsencesForYear(year: number): Promise<VacationDay[]> {
   const dbPath = getDbPath();
-  const yearStartTs = dateToNSTimestamp(new Date(Date.UTC(year, 0, 1)));
-  const yearEndTs = dateToNSTimestamp(new Date(Date.UTC(year + 1, 0, 1)));
+  // Rows are stored at Zurich midnight, so the window has to be too: UTC midnight on
+  // 1 January is an hour *after* the Zurich 1 January row, which would drop it.
+  const yearStartTs = dateToNSTimestamp(makeDateZurich(year, 1, 1));
+  const yearEndTs = dateToNSTimestamp(makeDateZurich(year + 1, 1, 1));
+  const where = `WHERE ZDATE >= ${yearStartTs} AND ZDATE < ${yearEndTs} ORDER BY ZDATE ASC`;
 
-  const rows = await executeSQL<RawVacation>(
-    dbPath,
-    `SELECT Z_PK, ZDATE, ZISHALFDAY, ZTYPE FROM ZVACATIONDAY WHERE ZDATE >= ${yearStartTs} AND ZDATE < ${yearEndTs} ORDER BY ZDATE ASC`,
-  );
+  let rows: RawVacation[];
+  try {
+    rows = await executeSQL<RawVacation>(dbPath, `SELECT Z_PK, ZDATE, ZISHALFDAY, ZTYPE FROM ZVACATIONDAY ${where}`);
+  } catch (error) {
+    // A store that predates the app's V1 → V2 migration has no ZTYPE column. Read it
+    // without, rather than leaving the day with no summary at all; everything there
+    // is a vacation day.
+    const message = String(error);
+    if (!/no such column/i.test(message) && !message.includes("ZTYPE")) throw error;
+    const legacy = await executeSQL<Omit<RawVacation, "ZTYPE">>(
+      dbPath,
+      `SELECT Z_PK, ZDATE, ZISHALFDAY FROM ZVACATIONDAY ${where}`,
+    );
+    rows = legacy.map((r) => ({ ...r, ZTYPE: null }));
+  }
 
   return rows.map((r) => ({
     id: r.Z_PK,

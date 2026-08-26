@@ -2,9 +2,9 @@ import { Form, ActionPanel, Action, showToast, Toast, popToRoot, Icon } from "@r
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getAllProjects, getSegmentsForDate } from "./lib/queries";
 import { insertSegment } from "./lib/mutations";
-import { startOfDayZurich } from "./lib/dates";
+import { makeDateZurich, startOfDayZurich } from "./lib/dates";
 import { formatTimeOfDay, parseTimeInput } from "./lib/timeinput";
-import { defaultStartFor, validateEntry } from "./lib/entry";
+import { defaultStartFor, suggestedEndFor, validateEntry } from "./lib/entry";
 import { formatHours } from "./lib/calculator";
 import type { Project, WorkSegment } from "./lib/types";
 
@@ -17,6 +17,9 @@ export default function AddEntry() {
   // A ref, not state: the date effect reads it without re-running when times change.
   const timesEdited = useRef(false);
   const [daySegments, setDaySegments] = useState<WorkSegment[]>([]);
+  // Until the day's segments are in, an overlap can't be ruled out — so submitting
+  // waits rather than validating against an empty list.
+  const [segmentsStatus, setSegmentsStatus] = useState<"loading" | "ready" | "error">("loading");
   const [isLoading, setIsLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
 
@@ -40,18 +43,24 @@ export default function AddEntry() {
   // Load the selected day's segments (for the suggested start and overlap checks).
   useEffect(() => {
     let cancelled = false;
+    setSegmentsStatus("loading");
+    setDaySegments([]);
     (async () => {
       try {
         const segs = await getSegmentsForDate(date);
         if (cancelled) return;
         setDaySegments(segs);
+        setSegmentsStatus("ready");
         if (!timesEdited.current) {
           const suggested = defaultStartFor(date, segs);
           setStart(formatTimeOfDay(suggested));
-          setEnd(formatTimeOfDay(new Date(suggested.getTime() + 3600000)));
+          setEnd(formatTimeOfDay(suggestedEndFor(suggested)));
         }
       } catch (error) {
         if (!cancelled) {
+          // Stay out of "ready": with no segment list an overlap would go unnoticed,
+          // so the entry must not be submittable.
+          setSegmentsStatus("error");
           showToast({ style: Toast.Style.Failure, title: "Failed to load the day's entries", message: String(error) });
         }
       }
@@ -67,12 +76,12 @@ export default function AddEntry() {
   const startError = submitted && !startTime ? "Enter a time like 0810 or 8:10." : undefined;
   const endError = submitted && !endTime ? "Enter a time like 1730 or 17:30." : undefined;
 
-  const validationError = validateEntry({
-    startTime,
-    endTime,
-    daySegments,
-    hasProject: selectedProject !== "",
-  });
+  const validationError =
+    segmentsStatus === "ready"
+      ? validateEntry({ startTime, endTime, daySegments, hasProject: selectedProject !== "" })
+      : segmentsStatus === "error"
+        ? "Couldn’t read the day’s existing entries — overlaps can’t be checked. Reopen the command."
+        : "Loading the day’s entries…";
 
   const durationHours =
     startTime && endTime && endTime.getTime() > startTime.getTime()
@@ -111,7 +120,7 @@ export default function AddEntry() {
 
   return (
     <Form
-      isLoading={isLoading}
+      isLoading={isLoading || segmentsStatus === "loading"}
       navigationTitle="Add Work Entry"
       actions={
         <ActionPanel>
@@ -151,11 +160,26 @@ export default function AddEntry() {
         title="Date"
         type={Form.DatePicker.Type.Date}
         value={date}
-        onChange={(newDate) => setDate(startOfDayZurich(newDate ?? new Date()))}
+        onChange={(newDate) => {
+          // Type.Date hands back midnight in the machine's timezone; take the calendar
+          // day the user actually picked rather than re-deriving it from that instant.
+          const picked = newDate ?? new Date();
+          const next = makeDateZurich(picked.getFullYear(), picked.getMonth() + 1, picked.getDate());
+          if (next.getTime() !== date.getTime()) setDate(next);
+        }}
       />
 
-      <Form.Description title="Duration" text={durationHours !== null ? formatHours(durationHours) : "—"} />
-      {validationError && <Form.Description title="Not valid yet" text={validationError} />}
+      <Form.Description
+        title="Entry"
+        text={
+          startTime && endTime && durationHours !== null
+            ? `${formatTimeOfDay(startTime)} – ${formatTimeOfDay(endTime)} · ${formatHours(durationHours)}`
+            : "—"
+        }
+      />
+      {segmentsStatus !== "loading" && validationError && (
+        <Form.Description title="Not valid yet" text={validationError} />
+      )}
       {!isLoading && projects.length === 0 && (
         <Form.Description title="No projects" text="Create a project in the WorkTracker app's Projects screen first." />
       )}
