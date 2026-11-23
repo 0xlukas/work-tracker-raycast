@@ -1,7 +1,7 @@
 import { Action, ActionPanel, Alert, Color, Icon, Keyboard, List, confirmAlert } from "@raycast/api";
 import { useState, type ReactElement } from "react";
-import { deleteEntries, getOverview, getSummary, listEntries, listProjects, stopTimer } from "../lib/api";
-import { addDays, formatBalance, formatDay, formatHours, relativeDay, zurichToday } from "../lib/format";
+import { deleteEntries, getOverview, getSummary, listAbsences, listEntries, listProjects, stopTimer } from "../lib/api";
+import { addDays, formatBalance, formatDay, formatHours, relativeDay, shortMoment, zurichToday } from "../lib/format";
 import type { Entry, Overview, Project, SummaryDay } from "../lib/types";
 import { CommonActions, ErrorEmptyView, balanceColor, perform, projectIcon, useWorkTracker } from "../lib/ui";
 import { EntryForm } from "./EntryForm";
@@ -9,13 +9,17 @@ import { TimerList } from "./TimerList";
 
 async function loadDay(day: string) {
   const isToday = day === zurichToday();
-  const [entries, summary, projects, overview] = await Promise.all([
+  const [entries, summary, projects, absences, overview] = await Promise.all([
     listEntries(day),
     getSummary(day, day, "day"),
     listProjects(true),
+    listAbsences(day, day),
     isToday ? getOverview() : Promise.resolve(undefined),
   ]);
   return {
+    date: day,
+    // The summary counts days (a full absence on a half holiday counts 0.5); the flag says what was recorded.
+    absenceIsHalfDay: absences[0]?.half_day ?? false,
     entries: entries.entries,
     day: summary.days?.[0] as SummaryDay | undefined,
     worked: summary.worked ?? entries.total_hours,
@@ -31,7 +35,9 @@ async function loadDay(day: string) {
 export function DayView({ initialDay }: { initialDay?: string }) {
   const today = zurichToday();
   const [day, setDay] = useState(initialDay ?? today);
-  const { data, isLoading, error, revalidate } = useWorkTracker(loadDay, [day]);
+  // Not keepPreviousData: the old day's entries would show under the new day's title.
+  const { data: loaded, isLoading, error, revalidate } = useWorkTracker(loadDay, [day], { keepPreviousData: false });
+  const data = loaded?.date === day ? loaded : undefined;
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, -i));
   if (initialDay && !days.includes(initialDay)) days.push(initialDay);
 
@@ -108,7 +114,7 @@ function SummaryItem({
   if (data.day?.absence) {
     const absence = data.day.absence;
     const name = absence.category_name ?? absence.category;
-    details.push({ tag: { value: absence.days === 0.5 ? `${name} (half day)` : name, color: Color.Blue } });
+    details.push({ tag: { value: data.absenceIsHalfDay ? `${name} (half day)` : name, color: Color.Blue } });
   }
   if (data.overview) {
     details.push({
@@ -154,7 +160,7 @@ function TimerItem({ overview, onChange }: { overview: Overview; onChange: () =>
     <List.Item
       icon={{ source: Icon.Stopwatch, tintColor: Color.Red }}
       title={`Timer: ${timer.project ?? "No project"}`}
-      subtitle={`since ${timer.started.slice(11)}`}
+      subtitle={`since ${shortMoment(timer.started)}`}
       accessories={[{ text: formatHours(timer.elapsed_hours), tooltip: "Running (not in the totals yet)" }]}
       actions={
         <ActionPanel>
@@ -198,7 +204,7 @@ function EntryItem({
   async function remove() {
     const confirmed = await confirmAlert({
       title: "Delete this entry?",
-      message: `${entry.start}–${entry.end}, ${entry.project ?? "no project"} (${formatHours(entry.hours)}). This syncs to your other Macs.`,
+      message: `${formatDay(entry.date)}, ${entry.start}–${entry.end}, ${entry.project ?? "no project"} (${formatHours(entry.hours)}). This syncs to your other Macs.`,
       primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
     });
     if (!confirmed) return;

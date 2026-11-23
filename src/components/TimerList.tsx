@@ -13,7 +13,7 @@ import {
 } from "@raycast/api";
 import { useForm } from "@raycast/utils";
 import { discardTimer, getOverview, listProjects, startTimer, stopTimer } from "../lib/api";
-import { formatDay, formatHours, nowRounded, parseTimeInput, relativeDay, zurichToday } from "../lib/format";
+import { formatHours, nowRounded, parseTimeInput, relativeDay, shortMoment } from "../lib/format";
 import type { Entry, Project } from "../lib/types";
 import { CommonActions, ErrorEmptyView, perform, projectIcon, showError, useWorkTracker } from "../lib/ui";
 
@@ -79,7 +79,7 @@ export function TimerList() {
               <List.Item
                 icon={{ source: Icon.Stopwatch, tintColor: Color.Red }}
                 title={timer.project ?? "No project"}
-                subtitle={`since ${relativeStart(timer.started)}`}
+                subtitle={`since ${shortMoment(timer.started)}`}
                 keywords={["stop", "running"]}
                 accessories={[{ tag: { value: formatHours(timer.elapsed_hours), color: Color.Red } }]}
                 actions={
@@ -146,12 +146,6 @@ export function TimerList() {
       )}
     </List>
   );
-}
-
-function relativeStart(started: string): string {
-  const day = started.slice(0, 10);
-  const time = started.slice(11);
-  return day === zurichToday() ? time : `${formatDay(day, "short")} ${time}`;
 }
 
 /** Ask for the time the timer started or stopped, when it wasn't now. */

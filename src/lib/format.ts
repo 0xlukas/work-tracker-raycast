@@ -93,10 +93,17 @@ export function pickerDate(day: string): Date {
   return new Date(year, month - 1, date);
 }
 
-/** A date picker's moment as `YYYY-MM-DD HH:MM` (the Mac's clock). */
+/** A date picker's moment as WorkTracker takes it: `YYYY-MM-DD HH:MM` in Zurich time. */
 export function momentFromPicker(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${dayFromPicker(date)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const { day, time } = zurichParts(date);
+  return `${day} ${time}`;
+}
+
+/** A tool's `YYYY-MM-DD HH:MM`: just the time today, with the day otherwise. */
+export function shortMoment(moment: string, today: string = zurichToday()): string {
+  const day = moment.slice(0, 10);
+  const time = moment.slice(11);
+  return day === today ? time : `${formatDay(day, day.slice(0, 4) === today.slice(0, 4) ? "short" : "medium")} ${time}`;
 }
 
 /** `Monday, 23 November 2026` (long) or `Mon 23 Nov` (short). */

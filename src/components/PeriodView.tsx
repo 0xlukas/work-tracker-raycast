@@ -1,10 +1,20 @@
 import { Action, ActionPanel, Color, Icon, Keyboard, List } from "@raycast/api";
-import { getSummary } from "../lib/api";
+import { getSummary, listAbsences } from "../lib/api";
 import { dayCount, formatBalance, formatDay, formatHours } from "../lib/format";
 import type { SummaryChunk, SummaryDay } from "../lib/types";
 import { CommonActions, ErrorEmptyView, balanceColor, useWorkTracker } from "../lib/ui";
 import { DayView } from "./DayView";
 import { EntryForm } from "./EntryForm";
+
+async function load(from: string, to: string, breakdown: "day" | "month") {
+  const [summary, absences] = await Promise.all([
+    getSummary(from, to, breakdown),
+    breakdown === "day" ? listAbsences(from, to) : Promise.resolve([]),
+  ]);
+  // The summary counts absence days (a full absence on a half holiday counts 0.5); the flag says what was recorded.
+  const halfDays = absences.filter((absence) => absence.half_day).map((absence) => absence.date);
+  return { ...summary, halfDays };
+}
 
 /** WorkTracker's summary of a period: per day or month, per project and absences. */
 export function PeriodView({
@@ -18,7 +28,7 @@ export function PeriodView({
   to: string;
   breakdown: "day" | "month";
 }) {
-  const { data, isLoading, error, revalidate } = useWorkTracker(getSummary, [from, to, breakdown]);
+  const { data, isLoading, error, revalidate } = useWorkTracker(load, [from, to, breakdown]);
   const common = <CommonActions onRefresh={revalidate} />;
   return (
     <List isLoading={isLoading} navigationTitle={title}>
@@ -41,7 +51,14 @@ export function PeriodView({
             {breakdown === "day"
               ? [...(data.days ?? [])]
                   .reverse()
-                  .map((day) => <DayItem key={day.date} day={day} onChange={revalidate} />)
+                  .map((day) => (
+                    <DayItem
+                      key={day.date}
+                      day={day}
+                      halfDay={data.halfDays.includes(day.date)}
+                      onChange={revalidate}
+                    />
+                  ))
               : [...(data.months ?? [])].reverse().map((month) => <MonthItem key={month.month} month={month} />)}
           </List.Section>
           <List.Section title="Projects">
@@ -72,13 +89,13 @@ export function PeriodView({
   );
 }
 
-function DayItem({ day, onChange }: { day: SummaryDay; onChange: () => void }) {
+function DayItem({ day, halfDay, onChange }: { day: SummaryDay; halfDay: boolean; onChange: () => void }) {
   const accessories: List.Item.Accessory[] = [];
   if (day.missing_entries) accessories.push({ tag: { value: "No entries", color: Color.Orange } });
   if (day.holiday) accessories.push({ tag: { value: day.holiday, color: Color.Purple } });
   if (day.absence) {
     const name = day.absence.category_name ?? day.absence.category;
-    accessories.push({ tag: { value: day.absence.days === 0.5 ? `${name} ½` : name, color: Color.Blue } });
+    accessories.push({ tag: { value: halfDay ? `${name} ½` : name, color: Color.Blue } });
   }
   accessories.push({ tag: { value: formatBalance(day.balance), color: balanceColor(day.balance) } });
   return (

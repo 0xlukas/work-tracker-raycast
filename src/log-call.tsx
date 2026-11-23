@@ -1,10 +1,11 @@
-import { Action, ActionPanel, Form, Icon, popToRoot } from "@raycast/api";
+import { Action, ActionPanel, Form, Icon, Toast, popToRoot, showHUD, showToast } from "@raycast/api";
 import { useForm, usePromise } from "@raycast/utils";
 import { useEffect, useMemo, useState } from "react";
-import { deleteCalls, getCallSummary, listCalls, logCall } from "./lib/api";
-import { addDays, formatDay, momentFromPicker, zurichToday } from "./lib/format";
+import { getCallSummary, listCalls, logCall } from "./lib/api";
+import { recentCalls } from "./lib/calls";
+import { formatDay, momentFromPicker, zurichToday } from "./lib/format";
 import type { Call, CallLength } from "./lib/types";
-import { CommonActions, perform, showError } from "./lib/ui";
+import { CommonActions, showError } from "./lib/ui";
 
 const LENGTHS: { value: CallLength; title: string }[] = [
   { value: "short", title: "Short (under 15 minutes)" },
@@ -14,9 +15,10 @@ const LENGTHS: { value: CallLength; title: string }[] = [
 
 async function load() {
   const today = zurichToday();
-  // The last year's calls suggest callers, their topics and departments, like the app's panel.
-  const [calls, summary] = await Promise.all([listCalls(addDays(today, -365), today), getCallSummary(today)]);
-  return { calls: calls.reverse(), departments: summary.departments, today: summary.calls };
+  // Recent calls (newest first, up to a year back) suggest callers, their topics and
+  // departments, like the app's panel.
+  const [calls, summary] = await Promise.all([recentCalls(listCalls, today), getCallSummary(today)]);
+  return { calls, departments: summary.departments, today: summary.calls };
 }
 
 interface Values {
@@ -42,37 +44,25 @@ export default function LogCall() {
     initialValues: { caller: "", topic: "", department: "", length: "short", solvedByMe: false, note: "", at: null },
     validation: { caller: (value) => (value?.trim() ? undefined : "Who called?") },
     async onSubmit(values) {
-      const logged = await perform(
-        "Logging call…",
-        () =>
-          logCall({
-            caller: values.caller.trim(),
-            topic: values.topic.trim() || undefined,
-            department: values.department || undefined,
-            length: values.length as CallLength,
-            solved_by_me: values.solvedByMe,
-            note: values.note.trim() || undefined,
-            at: values.at ? momentFromPicker(values.at) : undefined,
-          }),
-        (call) => ({
-          title: "Call logged",
-          message: describe(call),
-          primaryAction: {
-            title: "Undo",
-            shortcut: { modifiers: ["cmd"], key: "z" },
-            onAction: async (toast) => {
-              await toast.hide();
-              await perform(
-                "Removing call…",
-                () => deleteCalls([call.id]),
-                () => ({ title: "Call removed" }),
-              );
-            },
-          },
-        }),
-      );
-      if (logged) await popToRoot({ clearSearchBar: true });
-      return logged ? undefined : false;
+      const toast = await showToast({ style: Toast.Style.Animated, title: "Logging call…" });
+      try {
+        const call = await logCall({
+          caller: values.caller.trim(),
+          topic: values.topic.trim() || undefined,
+          department: values.department || undefined,
+          length: values.length as CallLength,
+          solved_by_me: values.solvedByMe,
+          note: values.note.trim() || undefined,
+          at: values.at ? momentFromPicker(values.at) : undefined,
+        });
+        // The command closes, so there's no Undo here; WorkTracker's Calls screen edits calls.
+        await showHUD(`Call logged · ${describe(call)}`);
+        await popToRoot({ clearSearchBar: true });
+      } catch (error) {
+        await toast.hide();
+        await showError(error);
+        return false;
+      }
     },
   });
 
@@ -89,7 +79,7 @@ export default function LogCall() {
   useEffect(() => {
     const last = calls.find((call) => same(call.caller, values.caller) && call.department);
     if (last?.department && data?.departments.includes(last.department)) setValue("department", last.department);
-  }, [values.caller]);
+  }, [values.caller, data]);
 
   return (
     <Form

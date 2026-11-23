@@ -6,7 +6,9 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { test } from "node:test";
+import { replacedAbsences } from "../src/lib/absence-rules";
 import * as api from "../src/lib/api";
+import { recentCalls } from "../src/lib/calls";
 import { WORKTRACKER_BUNDLE_ID } from "../src/lib/config";
 import { DEFAULT_PORT, WorkTrackerError } from "../src/lib/mcp";
 
@@ -114,13 +116,26 @@ test("log and delete a call", { skip }, async () => {
   }
 });
 
-test("record and remove an absence", { skip }, async () => {
+test("recent calls include the latest", { skip }, async () => {
+  const call = await api.logCall({ caller: "Live Test Latest", length: "short", solved_by_me: false });
+  try {
+    const calls = await recentCalls(api.listCalls, call.date);
+    assert.equal(calls[0]?.id, call.id);
+  } finally {
+    await api.deleteCalls([call.id]);
+  }
+});
+
+test("record and remove an absence; replacing one is detected", { skip }, async () => {
   const day = "2027-03-03"; // A Wednesday, far enough ahead to be free.
   const result = await api.setAbsences(day, day, "sick", true);
   try {
     assert.deepEqual(result.days, [day]);
     const absences = await api.listAbsences(day, day);
     assert.equal(absences[0]?.half_day, true);
+    assert.equal(replacedAbsences(absences, "sick", true).length, 0);
+    assert.equal(replacedAbsences(absences, "sick", false).length, 1);
+    assert.equal(replacedAbsences(absences, "vacation", true).length, 1);
   } finally {
     await api.removeAbsences(day);
   }

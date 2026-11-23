@@ -9,7 +9,7 @@ import {
   formatHours,
   startOfMonth,
   startOfWeek,
-  zurichToday,
+  shortMoment,
 } from "./lib/format";
 import type { Overview, Totals } from "./lib/types";
 import { CommonActions, ErrorEmptyView, balanceColor, useWorkTracker } from "./lib/ui";
@@ -70,7 +70,7 @@ function OverviewSections({ overview, onRefresh }: { overview: Overview; onRefre
           target={
             <PeriodView
               title={year}
-              from={maxDay(`${year}-01-01`, overview.tracking_start)}
+              from={minDay(maxDay(`${year}-01-01`, overview.tracking_start), today)}
               to={today}
               breakdown="month"
             />
@@ -128,7 +128,7 @@ function OverviewSections({ overview, onRefresh }: { overview: Overview; onRefre
         <List.Item
           icon={{ source: Icon.Stopwatch, tintColor: overview.timer.running ? Color.Red : Color.SecondaryText }}
           title={overview.timer.running ? `Timer: ${overview.timer.project ?? "No project"}` : "Timer not running"}
-          subtitle={overview.timer.running ? `since ${overview.timer.started.slice(11)}` : undefined}
+          subtitle={overview.timer.running ? `since ${shortMoment(overview.timer.started, today)}` : undefined}
           accessories={overview.timer.running ? [{ text: formatHours(overview.timer.elapsed_hours) }] : []}
           actions={
             <ActionPanel>
@@ -190,7 +190,7 @@ function SyncItem({ sync, common }: { sync: NonNullable<Overview["sync"]>; commo
         tintColor: problem ? Color.Orange : Color.Green,
       }}
       title={problem ? "Sync needs attention" : "Sync on"}
-      subtitle={problem ?? (sync.last_sync ? `last synced ${lastSync(sync.last_sync)}` : undefined)}
+      subtitle={problem ?? (sync.last_sync ? `last synced ${shortMoment(sync.last_sync)}` : undefined)}
       actions={<ActionPanel>{common}</ActionPanel>}
     />
   );
@@ -200,7 +200,6 @@ function maxDay(a: string, b: string): string {
   return a > b ? a : b;
 }
 
-function lastSync(moment: string): string {
-  const day = moment.slice(0, 10);
-  return day === zurichToday() ? moment.slice(11) : `${formatDay(day, "short")} ${moment.slice(11)}`;
+function minDay(a: string, b: string): string {
+  return a < b ? a : b;
 }

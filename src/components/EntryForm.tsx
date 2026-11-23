@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Form, Icon, Toast, popToRoot, useNavigation } from "@raycast/api";
+import { Action, ActionPanel, Form, Icon, Toast, popToRoot, showHUD, showToast, useNavigation } from "@raycast/api";
 import { useForm, usePromise } from "@raycast/utils";
 import { useEffect } from "react";
 import { addEntry, deleteEntries, listEntries, listProjects, updateEntry } from "../lib/api";
@@ -13,6 +13,7 @@ import {
   timeOf,
   zurichToday,
 } from "../lib/format";
+import { freeSlot } from "../lib/entries";
 import type { Entry, Project } from "../lib/types";
 import { CommonActions, perform, projectIcon, showError } from "../lib/ui";
 
@@ -21,7 +22,11 @@ interface Props {
   entry?: Entry;
   /** Day for a new entry; today by default. */
   date?: string;
-  /** Called after saving. Without it, the form returns to Raycast's root. */
+  /**
+   * Called after saving (and after an Undo). Set when the form was pushed from a view that
+   * stays open: then the form goes back to it and the toast offers Undo. Without it (the
+   * Add Work Entry command), the window closes, so there's no Undo to offer.
+   */
   onSaved?: () => void;
 }
 
@@ -119,34 +124,49 @@ function LoadedEntryForm({
         project: values.project,
         note: values.note.trim(),
       };
-      const saved = entry
-        ? await perform(
-            "Saving entry…",
-            () => updateEntry(entry.id, fields),
-            (after) => ({ title: "Entry updated", message: describe(after) }),
-          )
-        : await perform(
-            "Adding entry…",
-            () => addEntry(fields),
-            (added): Toast.Options => ({
-              title: "Entry added",
-              message: describe(added),
-              primaryAction: {
-                title: "Undo",
-                shortcut: { modifiers: ["cmd"], key: "z" },
-                onAction: async (toast) => {
-                  await toast.hide();
-                  await perform(
-                    "Removing entry…",
-                    () => deleteEntries([added.id]),
-                    () => ({ title: "Entry removed" }),
-                  );
-                  onSaved?.();
-                },
+      if (entry) {
+        const saved = await perform(
+          "Saving entry…",
+          () => updateEntry(entry.id, fields),
+          (after) => ({ title: "Entry updated", message: describe(after) }),
+        );
+        if (!saved) return false;
+      } else if (onSaved) {
+        const added = await perform(
+          "Adding entry…",
+          () => addEntry(fields),
+          (added): Toast.Options => ({
+            title: "Entry added",
+            message: describe(added),
+            primaryAction: {
+              title: "Undo",
+              shortcut: { modifiers: ["cmd"], key: "z" },
+              onAction: async (toast) => {
+                await toast.hide();
+                await perform(
+                  "Removing entry…",
+                  () => deleteEntries([added.id]),
+                  () => ({ title: "Entry removed" }),
+                );
+                onSaved();
               },
-            }),
-          );
-      if (!saved) return false;
+            },
+          }),
+        );
+        if (!added) return false;
+      } else {
+        const toast = await showToast({ style: Toast.Style.Animated, title: "Adding entry…" });
+        try {
+          const added = await addEntry(fields);
+          await showHUD(`Entry added · ${describe(added)}`);
+          await popToRoot({ clearSearchBar: true });
+        } catch (error) {
+          await toast.hide();
+          await showError(error);
+          return false;
+        }
+        return;
+      }
       if (onSaved) {
         onSaved();
         pop();
@@ -203,14 +223,15 @@ function describe(entry: Entry): string {
 }
 
 /**
- * A new entry starts where the day's last entry ends (or 08:00) and, today, ends now; the
- * project is the one worked on most recently, as WorkTracker's timer picks it.
+ * A new entry starts where the day's last entry ends (or 08:00, or in the first free gap
+ * when the day is taken up to midnight) and, today, ends now; it never runs into the next
+ * entry. The project is the one worked on most recently, as WorkTracker's timer picks it.
  */
-function newEntryDefaults(day: string, dayEntries: Entry[], projects: Project[]) {
-  const lastEnd = dayEntries.reduce((latest, entry) => Math.max(latest, minutesOf(entry.end)), -1);
-  const start = lastEnd >= 0 ? Math.min(lastEnd, 23 * 60 + 45) : 8 * 60;
-  const now = day === zurichToday() ? minutesOf(nowRounded(5)) : -1;
-  const end = now > start ? now : Math.min(start + 60, 24 * 60);
+function newEntryDefaults(day: string, dayEntries: Entry[], projects: Project[], now = new Date()) {
+  const { start, end } = freeSlot(
+    dayEntries.map((entry) => [minutesOf(entry.start), minutesOf(entry.end)] as [number, number]),
+    day === zurichToday(now) ? minutesOf(nowRounded(5, now)) : undefined,
+  );
   const active = projects.filter((project) => !project.archived);
   const recent = [...active].sort(
     (a, b) => (b.last_worked ?? "").localeCompare(a.last_worked ?? "") || b.entries - a.entries,

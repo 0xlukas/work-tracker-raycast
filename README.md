@@ -7,12 +7,12 @@ Raycast commands for [WorkTracker](https://github.com/0xlukas/work-tracker): log
 | Command | What it does |
 |---|---|
 | **View Today** | Today's entries with project colours and notes; worked, expected and the day's balance; holidays and absences; this week's balance; the running timer. The dropdown goes back two weeks. Edit (↵ on an entry), add (⌘N), copy or delete (⌃X) entries. |
-| **Add Work Entry** | Day, start, end, project and note. Starts where the day's last entry ends and, today, ends now; the project is the one you worked on last. Times take `8`, `830`, `8:30` or `8.30`; `24:00` ends at midnight. The toast's **Undo** (⌘Z) removes the entry again. |
+| **Add Work Entry** | Day, start, end, project and note. Starts where the day's last entry ends and, today, ends now; the project is the one you worked on last. Times take `8`, `830`, `8:30` or `8.30`; `24:00` ends at midnight. The window closes with a confirmation; fix mistakes in View Today. Entries added from a list (View Today, a period's days, Days Without Entries) offer **Undo** (⌘Z) in the toast, since that list stays open. |
 | **Start or Stop Timer** | Projects, the most recent first. ↵ starts the timer (switching from a running one saves it first); **Start at…** (⌘T) when you forgot. The running timer stops with ↵, **Stop at…** (⌘T) or is discarded (⌃X). |
 | **Work Balance** | WorkTracker's overview: today, this week, month and year (worked of expected, balance), all-time overtime with the opening balance, vacation left, days without entries, the timer and sync problems. ↵ opens the days of a period (months for the year), its projects and absences. |
-| **Log Call** | Caller and topic pick from the last year's calls (latest first, the caller's own topics first) or take what you type; the department follows the caller's last call. Length, **Solved by me** (⌘M), note and an optional time. **Undo** in the toast. |
-| **Vacation Left** | A year's allowance (entitlement, carried over, used, left), absences coming up and taken. **Record Absence…** (⌘N) for a range of days in any category, half days included; remove one (⌃X). |
-| **Days Without Entries** | Past working days with neither entries nor an absence, most recent first. Add an entry, or record an absence for the day (⌘B), full or half day. |
+| **Log Call** | Caller and topic pick from the last year's calls (latest first, the caller's own topics first) or take what you type; the department follows the caller's last call. Length, **Solved by me** (⌘M), note and an optional time (sent in Zurich time). The window closes with a confirmation; edit calls in WorkTracker. |
+| **Vacation Left** | A year's allowance (entitlement, carried over, used, left), absences coming up and taken. **Record Absence…** (⌘N) for a range of days in any category, half days included; remove one (⌃X). Recording over existing absences (another category, or full instead of half days) asks first and lists the days; **Undo** is offered when the range had no absences before. |
+| **Days Without Entries** | Past working days with neither entries nor an absence, most recent first. Add an entry, or record an absence for the day (⌘B), full or half day, with the same check and Undo. |
 | **Daily Quote** | The quote WorkTracker shows when it opens, the same one on the same day. ⌘⇧C copies it. |
 
 Every view has **Open WorkTracker** (⌘O) and **Refresh** (⌘R). There's no menu bar command: WorkTracker's own menu bar item already shows today's hours, the week's balance and the timer, and logs calls.
@@ -24,7 +24,7 @@ On each Mac:
 1. In WorkTracker, turn on **Settings › Assistants › Let AI assistants use Work Tracker**. It's off by default and per Mac. This is the one step the extension can't do for you; it never changes WorkTracker's settings.
 2. Install the extension (below).
 
-That's all. The extension reads the server's port and key from WorkTracker's preferences (`defaults read com.worktracker.app assistantServerPort` / `assistantServerToken`), so **New Key** in WorkTracker needs nothing here. If the server is off, WorkTracker isn't running or the key is refused, each command says so and offers **Open WorkTracker**.
+That's all. The extension reads the server's port and key from WorkTracker's preferences (`defaults read com.worktracker.app assistantServerPort` / `assistantServerToken`), so **New Key** in WorkTracker needs nothing here. If the server is off, WorkTracker isn't running, the key is refused or WorkTracker is too old for a tool, each command says so and offers **Open WorkTracker**. If WorkTracker doesn't answer a change in time, the message says it may still have been saved, so check before trying again.
 
 The extension's preferences (**Assistant Key**, **Port**) are only for pointing it at another WorkTracker build, such as a test build. Leave them empty otherwise.
 
