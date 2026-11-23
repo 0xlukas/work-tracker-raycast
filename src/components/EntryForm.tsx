@@ -13,7 +13,7 @@ import {
   timeOf,
   zurichToday,
 } from "../lib/format";
-import { freeSlot } from "../lib/entries";
+import { changedFields, freeSlot } from "../lib/entries";
 import type { Entry, Project } from "../lib/types";
 import { CommonActions, perform, projectIcon, showError } from "../lib/ui";
 
@@ -125,9 +125,16 @@ function LoadedEntryForm({
         note: values.note.trim(),
       };
       if (entry) {
+        const changes = changedFields(entry, fields);
+        if (Object.keys(changes).length === 0) {
+          await showToast({ style: Toast.Style.Success, title: "Nothing changed" });
+          onSaved?.();
+          pop();
+          return;
+        }
         const saved = await perform(
           "Saving entry…",
-          () => updateEntry(entry.id, fields),
+          () => updateEntry(entry.id, changes),
           (after) => ({ title: "Entry updated", message: describe(after) }),
         );
         if (!saved) return false;

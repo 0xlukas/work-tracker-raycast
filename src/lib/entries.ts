@@ -21,3 +21,21 @@ export function freeSlot(taken: [number, number][], now?: number): { start: numb
   const end = now !== undefined && now > start && now <= limit ? now : Math.min(start + 60, limit);
   return { start, end };
 }
+
+/**
+ * The fields of an edited entry that differ from the entry, for update_entry. Unchanged
+ * times aren't resent: a time in the hour that repeats when summer time ends would be read
+ * as its first occurrence and could move the entry. A new day keeps the times on its own.
+ */
+export function changedFields(
+  entry: { date: string; start: string; end: string; project: string | null; note?: string },
+  fields: { date: string; start: string; end: string; project: string; note: string },
+): Partial<typeof fields> {
+  const changes: Partial<typeof fields> = {};
+  if (fields.date !== entry.date) changes.date = fields.date;
+  if (fields.start !== entry.start) changes.start = fields.start;
+  if (fields.end !== entry.end) changes.end = fields.end;
+  if (fields.project !== (entry.project ?? "")) changes.project = fields.project;
+  if (fields.note !== (entry.note ?? "")) changes.note = fields.note;
+  return changes;
+}

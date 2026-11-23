@@ -9,7 +9,7 @@ import {
   List,
   confirmAlert,
   showHUD,
-  useNavigation,
+  popToRoot,
 } from "@raycast/api";
 import { useForm } from "@raycast/utils";
 import { discardTimer, getOverview, listProjects, startTimer, stopTimer } from "../lib/api";
@@ -35,21 +35,26 @@ export function TimerList() {
   const { data, isLoading, error, revalidate } = useWorkTracker(load, []);
   const timer = data?.timer;
 
-  async function start(project: Project, at?: string) {
+  /** True when it worked; the HUD then closes the window. */
+  async function start(project: Project, at?: string): Promise<boolean> {
     try {
       const result = await startTimer(project.name, at);
       await showHUD(`⏱ ${result.message || `Timer started for ${project.name}`}`);
+      return true;
     } catch (error) {
       await showError(error);
+      return false;
     }
   }
 
-  async function stop(at?: string) {
+  async function stop(at?: string): Promise<boolean> {
     try {
       const result = await stopTimer(at);
       await showHUD(`Timer stopped · ${savedMessage(result.saved, result.note)}`);
+      return true;
     } catch (error) {
       await showError(error);
+      return false;
     }
   }
 
@@ -149,14 +154,14 @@ export function TimerList() {
 }
 
 /** Ask for the time the timer started or stopped, when it wasn't now. */
-function TimeForm({ title, onSubmit }: { title: string; onSubmit: (at: string) => Promise<void> }) {
-  const { pop } = useNavigation();
+function TimeForm({ title, onSubmit }: { title: string; onSubmit: (at: string) => Promise<boolean> }) {
   const { handleSubmit, itemProps } = useForm<{ time: string }>({
     initialValues: { time: nowRounded(5) },
     validation: { time: (value) => (value && parseTimeInput(value) ? undefined : "Use HH:MM, e.g. 08:30") },
     async onSubmit(values) {
-      await onSubmit(parseTimeInput(values.time)!);
-      pop();
+      // On success the window closes; when WorkTracker refuses, the form stays with the typed time.
+      if (await onSubmit(parseTimeInput(values.time)!)) await popToRoot({ clearSearchBar: true });
+      else return false;
     },
   });
   return (

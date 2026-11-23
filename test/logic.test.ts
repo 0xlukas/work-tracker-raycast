@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { describeSkipped, replacedAbsences } from "../src/lib/absence-rules";
 import { callsNewestFirst, recentCalls } from "../src/lib/calls";
-import { freeSlot } from "../src/lib/entries";
+import { parseOverride } from "../src/lib/config";
+import { changedFields, freeSlot } from "../src/lib/entries";
 import { addDays, minutesOf, momentFromPicker, shortMoment, timeOf } from "../src/lib/format";
 import type { Absence, Call } from "../src/lib/types";
 
@@ -146,4 +147,27 @@ test("skipped days: holidays by name, the rest counted", () => {
     "Skipped Fri 25 Dec (Christmas Day), +2 non-working days",
   );
   assert.equal(describeSkipped([]), undefined);
+});
+
+test("an edit sends only what changed", () => {
+  const entry = { date: "2026-10-25", start: "02:30", end: "04:00", project: "Support", note: "night" };
+  const same = { date: "2026-10-25", start: "02:30", end: "04:00", project: "Support", note: "night" };
+  assert.deepEqual(changedFields(entry, same), {});
+  assert.deepEqual(changedFields(entry, { ...same, note: "" }), { note: "" }); // the DST hour isn't resent
+  assert.deepEqual(changedFields(entry, { ...same, date: "2026-10-26", end: "05:00" }), {
+    date: "2026-10-26",
+    end: "05:00",
+  });
+  assert.deepEqual(changedFields({ ...entry, project: null, note: undefined }, { ...same, note: "" }), {
+    project: "Support",
+  });
+});
+
+test("overrides need both key and port, trimmed", () => {
+  assert.equal(parseOverride("", ""), undefined);
+  assert.equal(parseOverride(undefined, "  "), undefined);
+  assert.deepEqual(parseOverride(" abc \n", " 47616 "), { key: "abc", port: 47616 });
+  assert.throws(() => parseOverride("", "47616"), /both/);
+  assert.throws(() => parseOverride("abc", ""), /both/);
+  assert.throws(() => parseOverride("abc", "80"), /isn't valid/);
 });
