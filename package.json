@@ -5,7 +5,9 @@
   "description": "Track work hours, view balances, and manage time entries for the WorkTracker app",
   "icon": "icon.png",
   "author": "0xlukas",
-  "categories": ["Productivity"],
+  "categories": [
+    "Productivity"
+  ],
   "license": "MIT",
   "commands": [
     {
@@ -31,23 +33,22 @@
     }
   ],
   "dependencies": {
-    "@raycast/api": "^1.93.0",
-    "@raycast/utils": "^1.19.0"
+    "@raycast/api": "^2.13.1",
+    "@raycast/utils": "^2.3.3"
   },
   "devDependencies": {
-    "@raycast/eslint-config": "^1.0.11",
-    "@types/node": "20.8.10",
-    "@types/react": "18.3.3",
-    "eslint": "^8.57.0",
-    "prettier": "^3.3.3",
-    "typescript": "^5.4.5"
+    "@raycast/eslint-config": "^2.2.0",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "eslint": "^9.39.5",
+    "prettier": "^3.10.1",
+    "typescript": "~6.0.3"
   },
   "scripts": {
-    "build": "ray build",
+    "build": "ray build -e dist -o dist",
     "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
-    "prepublishOnly": "echo \"Error: no publish\" && exit 1",
-    "publish": "npx @raycast/api@latest publish"
+    "prepublishOnly": "echo \"Error: no publish\" && exit 1"
   }
 }
