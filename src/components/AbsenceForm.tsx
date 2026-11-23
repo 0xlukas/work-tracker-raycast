@@ -1,8 +1,9 @@
 import { Action, ActionPanel, Form, Icon, useNavigation } from "@raycast/api";
 import { useForm } from "@raycast/utils";
-import { listAbsenceCategories, setAbsences } from "../lib/api";
-import { dayCount, dayFromPicker, formatDay, pickerDate, zurichToday } from "../lib/format";
-import { perform, showError, useWorkTracker } from "../lib/ui";
+import { recordAbsences } from "../lib/absences";
+import { listAbsenceCategories } from "../lib/api";
+import { dayFromPicker, pickerDate, zurichToday } from "../lib/format";
+import { showError, useWorkTracker } from "../lib/ui";
 
 interface Values {
   from: Date | null;
@@ -29,18 +30,17 @@ export function AbsenceForm({ from, category, onSaved }: { from?: string; catego
         await showError(new Error("The last day is before the first."), "Can't record");
         return false;
       }
-      const result = await perform(
-        "Recording absence…",
-        () => setAbsences(first, last, values.category, values.halfDay),
-        (result) => ({
-          title: `Recorded ${dayCount(result.days.length * (values.halfDay ? 0.5 : 1))}`,
-          message: result.skipped?.length
-            ? `Skipped ${result.skipped.map((s) => `${formatDay(s.date, "short")} (${s.reason})`).join(", ")}`
-            : undefined,
-        }),
-      );
-      if (!result) return false;
-      onSaved?.();
+      const chosen = categories?.find((c) => (c.category_id ?? c.category) === values.category);
+      const recorded = await recordAbsences({
+        from: first,
+        to: last,
+        category: values.category,
+        categoryName: chosen?.category_name ?? chosen?.category ?? values.category,
+        halfDay: values.halfDay,
+        onChange: onSaved,
+      });
+      if (!recorded) return false;
+      // Back to the list, which stays open, so the toast's Undo keeps working.
       pop();
     },
   });
@@ -69,7 +69,7 @@ export function AbsenceForm({ from, category, onSaved }: { from?: string; catego
       <Form.DatePicker title="To" type={Form.DatePicker.Type.Date} {...itemProps.to} />
       <Form.Checkbox label="Half days" {...itemProps.halfDay} />
       <Form.Description
-        text={`Weekends, days without scheduled hours and full-day public holidays are skipped. An absence already on a day is replaced.${
+        text={`Weekends, days without scheduled hours and full-day public holidays are skipped. An absence already on a day is replaced (you are asked first).${
           values.from && values.to && dayFromPicker(values.to) < dayFromPicker(values.from)
             ? "\n\nThe last day is before the first."
             : ""

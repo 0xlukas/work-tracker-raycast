@@ -1,8 +1,9 @@
 import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
-import { listAbsenceCategories, listDaysWithoutEntries, setAbsences } from "../lib/api";
+import { recordAbsences } from "../lib/absences";
+import { listAbsenceCategories, listDaysWithoutEntries } from "../lib/api";
 import { formatDay, formatHours } from "../lib/format";
 import type { AbsenceCategory, MissingDay } from "../lib/types";
-import { CommonActions, ErrorEmptyView, perform, useWorkTracker } from "../lib/ui";
+import { CommonActions, ErrorEmptyView, useWorkTracker } from "../lib/ui";
 import { AbsenceForm } from "./AbsenceForm";
 import { DayView } from "./DayView";
 import { EntryForm } from "./EntryForm";
@@ -52,13 +53,14 @@ function MissingDayItem({
   onChange: () => void;
 }) {
   async function record(category: AbsenceCategory, halfDay: boolean) {
-    const name = category.category_name ?? category.category;
-    await perform(
-      `Recording ${name}…`,
-      () => setAbsences(day.date, day.date, category.category_id ?? category.category, halfDay),
-      () => ({ title: `${formatDay(day.date, "short")}: ${name}${halfDay ? " (half day)" : ""}` }),
-    );
-    onChange();
+    await recordAbsences({
+      from: day.date,
+      to: day.date,
+      category: category.category_id ?? category.category,
+      categoryName: category.category_name ?? category.category,
+      halfDay,
+      onChange,
+    });
   }
 
   return (
