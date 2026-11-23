@@ -4,12 +4,13 @@ export function freeSlot(taken: [number, number][], now?: number): { start: numb
   const MIN = 15;
   const sorted = [...taken].sort((a, b) => a[0] - b[0]);
   const lastEnd = sorted.reduce((latest, [, end]) => Math.max(latest, end), -1);
-  let start = 8 * 60;
+  // WorkTracker's own default for an empty day (EntryActions.nextStart).
+  let start = 8 * 60 + 10;
   if (lastEnd >= 0 && lastEnd <= DAY - MIN) {
     start = lastEnd;
   } else if (lastEnd > DAY - MIN) {
     // Taken up to midnight: the latest gap of at least 15 minutes (a missing lunch break
-    // is likelier than the small hours); without one, 08:00, and WorkTracker explains the overlap.
+    // is likelier than the small hours); without one, 08:10, and WorkTracker explains the overlap.
     let cursor = 0;
     for (const [from, to] of sorted) {
       if (from - cursor >= MIN) start = cursor;
@@ -38,4 +39,24 @@ export function changedFields(
   if (fields.project !== (entry.project ?? "")) changes.project = fields.project;
   if (fields.note !== (entry.note ?? "")) changes.note = fields.note;
   return changes;
+}
+
+/** "Other" in WorkTracker's UI languages (Localizable.xcstrings). */
+const OTHER_NAMES = ["Other", "Andere"];
+
+/**
+ * The project a new entry starts with, as WorkTracker's entry sheet picks it: the active
+ * project called "Other" (in any of its languages, ignoring case and accents); else the
+ * one worked on most recently; else the first.
+ */
+export function defaultProject<P extends { name: string; archived: boolean; last_worked?: string; entries: number }>(
+  projects: P[],
+): P | undefined {
+  const active = projects.filter((project) => !project.archived);
+  const same = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" }) === 0;
+  const other = active.find((project) => OTHER_NAMES.some((name) => same(name, project.name)));
+  if (other) return other;
+  return [...active].sort(
+    (a, b) => (b.last_worked ?? "").localeCompare(a.last_worked ?? "") || b.entries - a.entries,
+  )[0];
 }

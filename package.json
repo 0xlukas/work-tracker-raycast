@@ -21,7 +21,7 @@
       "name": "add-entry",
       "title": "Add Work Entry",
       "subtitle": "Work Tracker",
-      "description": "Add a time entry: day, start, end, project and note.",
+      "description": "Add a time entry for any day, pre-filled from the day's last entry.",
       "mode": "view"
     },
     {

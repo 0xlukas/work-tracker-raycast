@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { describeSkipped, replacedAbsences } from "../src/lib/absence-rules";
 import { callsNewestFirst, recentCalls } from "../src/lib/calls";
 import { parseOverride } from "../src/lib/config";
-import { changedFields, freeSlot } from "../src/lib/entries";
+import { changedFields, defaultProject, freeSlot } from "../src/lib/entries";
 import { addDays, minutesOf, momentFromPicker, shortMoment, timeOf } from "../src/lib/format";
 import type { Absence, Call } from "../src/lib/types";
 
@@ -65,8 +65,8 @@ test("a new entry's default slot", () => {
     );
     return `${timeOf(start)}–${timeOf(end)}`;
   };
-  assert.equal(slot([]), "08:00–09:00");
-  assert.equal(slot([], "10:35"), "08:00–10:35");
+  assert.equal(slot([]), "08:10–09:10"); // WorkTracker's default start
+  assert.equal(slot([], "10:35"), "08:10–10:35");
   assert.equal(slot([["08:00", "12:00"]], "14:10"), "12:00–14:10");
   assert.equal(
     slot([
@@ -83,7 +83,7 @@ test("a new entry's default slot", () => {
     ]),
     "12:00–13:00",
   );
-  assert.equal(slot([["00:00", "24:00"]]), "08:00–09:00");
+  assert.equal(slot([["00:00", "24:00"]]), "08:10–09:10");
   assert.equal(
     slot([
       ["00:00", "12:00"],
@@ -170,4 +170,20 @@ test("overrides need both key and port, trimmed", () => {
   assert.throws(() => parseOverride("", "47616"), /both/);
   assert.throws(() => parseOverride("abc", ""), /both/);
   assert.throws(() => parseOverride("abc", "80"), /isn't valid/);
+});
+
+test("a new entry's project: Other first, as in the app", () => {
+  const project = (name: string, last_worked?: string, archived = false) => ({
+    name,
+    last_worked,
+    archived,
+    entries: 1,
+  });
+  assert.equal(defaultProject([project("Support", "2026-11-20"), project("other")])?.name, "other");
+  assert.equal(defaultProject([project("Support", "2026-11-20"), project("Andere")])?.name, "Andere");
+  assert.equal(
+    defaultProject([project("Other", undefined, true), project("A", "2026-11-01"), project("B", "2026-11-20")])?.name,
+    "B",
+  );
+  assert.equal(defaultProject([]), undefined);
 });

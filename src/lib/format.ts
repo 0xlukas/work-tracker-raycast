@@ -126,17 +126,37 @@ export function relativeDay(day: string, today: string = zurichToday()): string 
 }
 
 /**
- * A typed time as `HH:MM`: accepts `9`, `930`, `0930`, `9:30`, `9.30` and `9h30`.
+ * A typed time as `HH:MM`, read exactly like WorkTracker's `TimeField.parse`: one or two
+ * digits are the hour (`8`, `08`), three are H:MM (`810`), four or more end in HHMM
+ * (`0810`), and any separator splits hour and minutes (`8:10`, `8.10`, `8 10`, `8h10`).
  * `24:00` only when `allowEndOfDay` (an entry's end). Undefined when it isn't a time.
  */
 export function parseTimeInput(text: string, allowEndOfDay = false): string | undefined {
-  const match = text.trim().match(/^(\d{1,2})(?:[:.h]?(\d{2}))?$/i);
-  if (!match) return undefined;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2] ?? "0");
-  if (minutes > 59) return undefined;
-  if (hours > 24 || (hours === 24 && (!allowEndOfDay || minutes > 0))) return undefined;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  const trimmed = text.trim();
+  const number = (digits: string) => (/^\d+$/.test(digits) ? Number(digits) : NaN);
+  let hour: number;
+  let minute: number;
+  const separator = [...trimmed].find((character) => !/\d/.test(character));
+  if (separator !== undefined) {
+    const parts = trimmed.split(separator);
+    hour = number(parts[0]);
+    minute = parts.length > 1 ? number(parts[1]) : 0;
+  } else if (trimmed.length === 1 || trimmed.length === 2) {
+    hour = number(trimmed);
+    minute = 0;
+  } else if (trimmed.length === 3) {
+    hour = number(trimmed.slice(0, 1));
+    minute = number(trimmed.slice(1));
+  } else if (trimmed.length >= 4) {
+    const last4 = trimmed.slice(-4);
+    hour = number(last4.slice(0, 2));
+    minute = number(last4.slice(2));
+  } else {
+    return undefined;
+  }
+  if (allowEndOfDay && hour === 24 && minute === 0) return "24:00";
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour > 23 || minute > 59) return undefined;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 /** Minutes since midnight of `HH:MM`. */

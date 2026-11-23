@@ -13,7 +13,7 @@ import {
   timeOf,
   zurichToday,
 } from "../lib/format";
-import { changedFields, freeSlot } from "../lib/entries";
+import { changedFields, defaultProject, freeSlot } from "../lib/entries";
 import type { Entry, Project } from "../lib/types";
 import { CommonActions, perform, projectIcon, showError } from "../lib/ui";
 
@@ -102,10 +102,10 @@ function LoadedEntryForm({
     },
     validation: {
       date: (value) => (value ? undefined : "Pick a day"),
-      start: (value) => (value && parseTimeInput(value) ? undefined : "Use HH:MM, e.g. 08:30"),
+      start: (value) => (value && parseTimeInput(value) ? undefined : "Enter a time like 0810 or 8:10"),
       end: (value) => {
         const end = value ? parseTimeInput(value, true) : undefined;
-        if (!end) return "Use HH:MM, e.g. 17:00 (24:00 for midnight)";
+        if (!end) return "Enter a time like 1730 or 17:30 (24:00 for midnight)";
         return undefined;
       },
       project: (value) => (value ? undefined : "Pick a project"),
@@ -200,9 +200,20 @@ function LoadedEntryForm({
         </ActionPanel>
       }
     >
+      {/* Start first, so typing a time works at once; the day sits below the times. */}
+      <Form.TextField
+        title="Start"
+        placeholder="0810"
+        info="Type HHMM (0810), HMM (810), the hour alone (8), or with a separator (8:10)."
+        {...itemProps.start}
+      />
+      <Form.TextField
+        title="End"
+        placeholder="1730"
+        info="Like the start; 24:00 ends at midnight."
+        {...itemProps.end}
+      />
       <Form.DatePicker title="Day" type={Form.DatePicker.Type.Date} {...itemProps.date} />
-      <Form.TextField title="Start" placeholder="08:30" info="HH:MM, or just 830 or 8" {...itemProps.start} />
-      <Form.TextField title="End" placeholder="17:00" info="HH:MM; 24:00 for midnight" {...itemProps.end} />
       <Form.Description title="Duration" text={duration} />
       <Form.Dropdown title="Project" {...itemProps.project}>
         {choices.map((project) => (
@@ -214,6 +225,9 @@ function LoadedEntryForm({
           />
         ))}
       </Form.Dropdown>
+      {choices.length === 0 && (
+        <Form.Description title="No projects" text="Create a project in WorkTracker's Projects screen first." />
+      )}
       <Form.TextField title="Note" placeholder="Optional" {...itemProps.note} />
       {!entry && dayEntries.length > 0 && (
         <Form.Description
@@ -230,18 +244,15 @@ function describe(entry: Entry): string {
 }
 
 /**
- * A new entry starts where the day's last entry ends (or 08:00, or in the first free gap
- * when the day is taken up to midnight) and, today, ends now; it never runs into the next
- * entry. The project is the one worked on most recently, as WorkTracker's timer picks it.
+ * A new entry starts where the day's last entry ends (08:10 on an empty day, as in the
+ * app; the latest free gap when the day is taken up to midnight) and, today, ends now; it
+ * never runs into the next entry. The project is "Other", as in the app's entry sheet,
+ * else the one worked on most recently.
  */
 function newEntryDefaults(day: string, dayEntries: Entry[], projects: Project[], now = new Date()) {
   const { start, end } = freeSlot(
     dayEntries.map((entry) => [minutesOf(entry.start), minutesOf(entry.end)] as [number, number]),
     day === zurichToday(now) ? minutesOf(nowRounded(5, now)) : undefined,
   );
-  const active = projects.filter((project) => !project.archived);
-  const recent = [...active].sort(
-    (a, b) => (b.last_worked ?? "").localeCompare(a.last_worked ?? "") || b.entries - a.entries,
-  )[0];
-  return { start: timeOf(start), end: timeOf(end), project: recent?.name ?? active[0]?.name ?? "" };
+  return { start: timeOf(start), end: timeOf(end), project: defaultProject(projects)?.name ?? "" };
 }

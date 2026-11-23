@@ -23,7 +23,14 @@ test("hours read like WorkTracker's", () => {
   assert.equal(formatBalance(-0.001), "+0h 00m");
 });
 
-test("typed times become HH:MM", () => {
+test("typed times are read like WorkTracker's TimeField.parse", () => {
+  assert.equal(parseTimeInput("8 10"), "08:10");
+  assert.equal(parseTimeInput("9:5"), "09:05");
+  assert.equal(parseTimeInput("12345"), "23:45"); // the last four digits
+  assert.equal(parseTimeInput("810"), "08:10");
+  assert.equal(parseTimeInput("0810"), "08:10");
+  assert.equal(parseTimeInput(""), undefined);
+  assert.equal(parseTimeInput("8:"), undefined);
   assert.equal(parseTimeInput("8"), "08:00");
   assert.equal(parseTimeInput("830"), "08:30");
   assert.equal(parseTimeInput("0830"), "08:30");
