@@ -2,52 +2,108 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "work-tracker",
   "title": "Work Tracker",
-  "description": "Track work hours, view balances, and manage time entries for the WorkTracker app",
+  "description": "Log time, run the timer, check your balance, log calls and see vacation left in WorkTracker, through the app's assistant server",
   "icon": "icon.png",
   "author": "0xlukas",
-  "categories": ["Productivity"],
+  "categories": [
+    "Productivity"
+  ],
   "license": "MIT",
   "commands": [
-    {
-      "name": "add-entry",
-      "title": "Add Work Entry",
-      "subtitle": "Work Tracker",
-      "description": "Add a new time entry for today",
-      "mode": "view"
-    },
     {
       "name": "view-today",
       "title": "View Today",
       "subtitle": "Work Tracker",
-      "description": "View today's time entries and daily summary",
+      "description": "Today's entries, hours and balance, with earlier days a dropdown away. Add, edit or delete entries.",
+      "mode": "view"
+    },
+    {
+      "name": "add-entry",
+      "title": "Add Work Entry",
+      "subtitle": "Work Tracker",
+      "description": "Add a time entry for any day, pre-filled from the day's last entry.",
+      "mode": "view"
+    },
+    {
+      "name": "timer",
+      "title": "Start or Stop Timer",
+      "subtitle": "Work Tracker",
+      "description": "Start WorkTracker's timer for a project, or stop it and save the time.",
+      "mode": "view"
+    },
+    {
+      "name": "balance",
+      "title": "Work Balance",
+      "subtitle": "Work Tracker",
+      "description": "Hours and balance for today, this week, month and year, all-time overtime, vacation left and days without entries.",
+      "mode": "view"
+    },
+    {
+      "name": "log-call",
+      "title": "Log Call",
+      "subtitle": "Work Tracker",
+      "description": "Log a call: caller, topic, department, length and who solved it.",
+      "mode": "view"
+    },
+    {
+      "name": "vacation",
+      "title": "Vacation Left",
+      "subtitle": "Work Tracker",
+      "description": "This year's vacation allowance, the days used and other absences. Record or remove absences.",
+      "mode": "view"
+    },
+    {
+      "name": "days-without-entries",
+      "title": "Days Without Entries",
+      "subtitle": "Work Tracker",
+      "description": "Past working days with no entries and no absence. Fill them in or record an absence.",
       "mode": "view"
     },
     {
       "name": "daily-quote",
       "title": "Daily Quote",
       "subtitle": "Work Tracker",
-      "description": "Show today's motivational quote",
+      "description": "Today's quote, the same one WorkTracker shows on launch.",
       "mode": "view"
     }
   ],
+  "preferences": [
+    {
+      "name": "serverKey",
+      "type": "password",
+      "required": false,
+      "title": "Assistant Key",
+      "description": "Leave empty: the extension reads the key from WorkTracker. Only for another WorkTracker build (for example a test build); set Port too."
+    },
+    {
+      "name": "serverPort",
+      "type": "textfield",
+      "required": false,
+      "title": "Port",
+      "placeholder": "47615",
+      "description": "Leave empty: the extension reads the port from WorkTracker (47615 by default). Only with Assistant Key, for another WorkTracker build."
+    }
+  ],
   "dependencies": {
-    "@raycast/api": "^1.93.0",
-    "@raycast/utils": "^1.19.0"
+    "@raycast/api": "^2.13.1",
+    "@raycast/utils": "^2.3.3"
   },
   "devDependencies": {
-    "@raycast/eslint-config": "^1.0.11",
-    "@types/node": "20.8.10",
-    "@types/react": "18.3.3",
-    "eslint": "^8.57.0",
-    "prettier": "^3.3.3",
-    "typescript": "^5.4.5"
+    "@raycast/eslint-config": "^2.2.0",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "prettier": "^3.10.1",
+    "typescript": "~6.0.3"
   },
   "scripts": {
-    "build": "ray build",
+    "build": "ray build -e dist -o dist",
     "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
-    "prepublishOnly": "echo \"Error: no publish\" && exit 1",
-    "publish": "npx @raycast/api@latest publish"
+    "test": "node scripts/test.mjs",
+    "sync-quotes": "node scripts/sync-quotes.mjs",
+    "prepublishOnly": "echo \"Error: no publish\" && exit 1"
   }
 }
