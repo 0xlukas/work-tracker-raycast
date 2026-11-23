@@ -101,6 +101,7 @@
     "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
+    "test": "node scripts/test.mjs",
     "sync-quotes": "node scripts/sync-quotes.mjs",
     "prepublishOnly": "echo \"Error: no publish\" && exit 1"
   }
