@@ -38,6 +38,8 @@ export function describeError(error: unknown): { title: string; message: string 
         return { title: "WorkTracker isn't answering", message: error.message };
       case "unauthorized":
         return { title: "WorkTracker refused the key", message: error.message };
+      case "outdated":
+        return { title: "Update WorkTracker", message: error.message };
       case "tool":
         return { title: "WorkTracker didn't do it", message: error.message };
       default:
@@ -82,10 +84,18 @@ export async function perform<T>(
   }
 }
 
-/** Load something from WorkTracker; shows the last result at once and refreshes it. */
-export function useWorkTracker<T, A extends unknown[]>(load: (...args: A) => Promise<T>, args: A) {
+/**
+ * Load something from WorkTracker; shows the last result at once and refreshes it.
+ * `keepPreviousData` keeps showing the old result while new arguments load; turn it off
+ * where the old result would be wrong under the new arguments (another day's entries).
+ */
+export function useWorkTracker<T, A extends unknown[]>(
+  load: (...args: A) => Promise<T>,
+  args: A,
+  { keepPreviousData = true }: { keepPreviousData?: boolean } = {},
+) {
   return useCachedPromise(load, args, {
-    keepPreviousData: true,
+    keepPreviousData,
     // The error is shown in the view (ErrorEmptyView), with what to do about it.
     onError: () => undefined,
   });

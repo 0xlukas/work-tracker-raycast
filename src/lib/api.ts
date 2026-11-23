@@ -25,6 +25,11 @@ async function call<T>(name: string, args: Record<string, unknown> = {}): Promis
   return callTool<T>(await resolveConnection(), name, args);
 }
 
+/** A tool that changes data. */
+async function change<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
+  return callTool<T>(await resolveConnection(), name, args, { write: true });
+}
+
 // Reading
 
 export const getOverview = () => call<Overview>("get_overview");
@@ -48,8 +53,9 @@ export const getVacation = (year: number) => call<Vacation>("get_vacation", { ye
 export const listDaysWithoutEntries = () =>
   call<{ count: number; days: MissingDay[] }>("list_days_without_entries").then((r) => r.days);
 
+/** Calls in a range, oldest first; at most `limit`, the oldest ones (`count` has them all). */
 export const listCalls = (from: string, to: string, limit = 2000) =>
-  call<{ count: number; calls: Call[] }>("list_calls", { from, to, limit }).then((r) => r.calls);
+  call<{ count: number; calls: Call[] }>("list_calls", { from, to, limit });
 
 export const getCallSummary = (from: string, to: string = from) => call<CallSummary>("get_call_summary", { from, to });
 
@@ -64,15 +70,15 @@ export interface NewEntry {
 }
 
 export const addEntry = (entry: NewEntry) =>
-  call<{ added: Entry[]; total_hours: number }>("add_entries", { entries: [entry] }).then((r) => r.added[0]);
+  change<{ added: Entry[]; total_hours: number }>("add_entries", { entries: [entry] }).then((r) => r.added[0]);
 
 export const updateEntry = (id: string, changes: Partial<NewEntry>) =>
-  call<{ before: Entry; after: Entry }>("update_entry", { id, ...changes }).then((r) => r.after);
+  change<{ before: Entry; after: Entry }>("update_entry", { id, ...changes }).then((r) => r.after);
 
-export const deleteEntries = (ids: string[]) => call<{ deleted: Entry[] }>("delete_entries", { ids });
+export const deleteEntries = (ids: string[]) => change<{ deleted: Entry[] }>("delete_entries", { ids });
 
 export const copyEntries = (fromDate: string, toDate: string) =>
-  call<{ copied: number; skipped_because_of_overlaps: number }>("copy_entries", {
+  change<{ copied: number; skipped_because_of_overlaps: number }>("copy_entries", {
     from_date: fromDate,
     to_date: toDate,
   });
@@ -80,7 +86,7 @@ export const copyEntries = (fromDate: string, toDate: string) =>
 // Absences
 
 export const setAbsences = (from: string, to: string, category: string, halfDay: boolean) =>
-  call<{ days: string[]; skipped?: { date: string; reason: string }[] }>("set_absences", {
+  change<{ days: string[]; skipped?: { date: string; reason: string }[] }>("set_absences", {
     from,
     to,
     category,
@@ -88,17 +94,17 @@ export const setAbsences = (from: string, to: string, category: string, halfDay:
   });
 
 export const removeAbsences = (from: string, to: string = from) =>
-  call<{ removed: Absence[] }>("remove_absences", { from, to });
+  change<{ removed: Absence[] }>("remove_absences", { from, to });
 
 // Timer
 
 /** `at`: `HH:MM` today or `YYYY-MM-DD HH:MM`; now when left out. */
 export const startTimer = (project: string, at?: string) =>
-  call<{ message: string; timer: TimerState }>("start_timer", at ? { project, at } : { project });
+  change<{ message: string; timer: TimerState }>("start_timer", at ? { project, at } : { project });
 
-export const stopTimer = (at?: string) => call<{ saved: Entry[]; note?: string }>("stop_timer", at ? { at } : {});
+export const stopTimer = (at?: string) => change<{ saved: Entry[]; note?: string }>("stop_timer", at ? { at } : {});
 
-export const discardTimer = () => call<{ discarded: { project: string | null; started: string } }>("discard_timer");
+export const discardTimer = () => change<{ discarded: { project: string | null; started: string } }>("discard_timer");
 
 // Calls
 
@@ -112,6 +118,6 @@ export interface NewCall {
   at?: string;
 }
 
-export const logCall = (newCall: NewCall) => call<Call>("log_call", { ...newCall });
+export const logCall = (newCall: NewCall) => change<Call>("log_call", { ...newCall });
 
-export const deleteCalls = (ids: string[]) => call<{ deleted: Call[] }>("delete_calls", { ids });
+export const deleteCalls = (ids: string[]) => change<{ deleted: Call[] }>("delete_calls", { ids });

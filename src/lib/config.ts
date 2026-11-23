@@ -30,6 +30,17 @@ export function parsePort(text: string | undefined): number | undefined {
  * preferences (read only), unless the extension's preferences override them.
  */
 export async function resolveConnection(): Promise<Connection> {
+  // A view makes several calls at once; read the preferences once for all of them.
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached.connection;
+  const connection = await readConnection();
+  cached = { connection, at: Date.now() };
+  return connection;
+}
+
+const CACHE_MS = 5_000;
+let cached: { connection: Connection; at: number } | undefined;
+
+async function readConnection(): Promise<Connection> {
   const preferences = getPreferenceValues<Preferences>();
   const keyOverride = preferences.serverKey?.trim();
   const portOverride = preferences.serverPort?.trim();

@@ -20,11 +20,12 @@ export interface Connection {
  * - `off`: the assistant server is turned off in WorkTracker's settings (or has no key yet);
  * - `unreachable`: nothing answers on the port (WorkTracker isn't running, or another port);
  * - `unauthorized`: the key was refused (replaced with New Key, or a stale override);
+ * - `outdated`: this WorkTracker doesn't have the tool yet (an older version);
  * - `server`: an HTTP or JSON-RPC error;
  * - `tool`: WorkTracker refused the call itself (an overlapping entry, an unknown project, …).
  *   Its message is written for people and can be shown as is.
  */
-export type ErrorKind = "off" | "unreachable" | "unauthorized" | "server" | "tool";
+export type ErrorKind = "off" | "unreachable" | "unauthorized" | "outdated" | "server" | "tool";
 
 export class WorkTrackerError extends Error {
   constructor(
@@ -38,12 +39,18 @@ export class WorkTrackerError extends Error {
 
 let nextId = 1;
 
+export interface CallOptions {
+  /** The tool changes data: a timeout then doesn't mean nothing was saved. */
+  write?: boolean;
+  timeoutMs?: number;
+}
+
 /** Call one of WorkTracker's tools and return its result, decoded from JSON. */
 export async function callTool<T>(
   connection: Connection,
   name: string,
   args: Record<string, unknown> = {},
-  timeoutMs = 15_000,
+  { write = false, timeoutMs = 15_000 }: CallOptions = {},
 ): Promise<T> {
   let response: Response;
   try {
@@ -66,7 +73,9 @@ export async function callTool<T>(
   } catch (error) {
     if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
       throw new WorkTrackerError(
-        "WorkTracker didn't answer in time. It may be waiting for you in its window (a sync question, for example).",
+        write
+          ? "WorkTracker didn't answer in time, but it may still have saved the change. Check in WorkTracker before trying again."
+          : "WorkTracker didn't answer in time. It may be waiting for you in its window (a sync question, for example).",
         "unreachable",
       );
     }
@@ -89,6 +98,9 @@ export async function callTool<T>(
     message = (await response.json()) as JsonRpcResponse;
   } catch {
     throw new WorkTrackerError("WorkTracker sent an answer that isn't JSON.", "server");
+  }
+  if (message.error?.code === -32602 && /unknown tool/i.test(message.error.message)) {
+    throw new WorkTrackerError(`This WorkTracker can't do “${name}” yet. Update WorkTracker.`, "outdated");
   }
   if (message.error) {
     throw new WorkTrackerError(message.error.message || `JSON-RPC error ${message.error.code}`, "server");

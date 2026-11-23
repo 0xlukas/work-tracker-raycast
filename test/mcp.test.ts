@@ -28,6 +28,8 @@ before(async () => {
       switch (message.params.name) {
         case "get_overview":
           return reply({ result: { content: [{ type: "text", text: '{"today":{"worked":1.5}}' }], isError: false } });
+        case "slow_tool":
+          return; // never answers
         case "add_entries":
           return reply({ result: { content: [{ type: "text", text: "It overlaps 08:00–12:00." }], isError: true } });
         default:
@@ -39,7 +41,10 @@ before(async () => {
   port = (server.address() as AddressInfo).port;
 });
 
-after(() => server.close());
+after(() => {
+  server.closeAllConnections();
+  server.close();
+});
 
 test("calls a tool with one JSON-RPC request and decodes its result", async () => {
   const result = await callTool<{ today: { worked: number } }>({ port, key: KEY }, "get_overview");
@@ -71,10 +76,18 @@ test("a wrong key is unauthorized", async () => {
   assert.equal((await failure(callTool({ port, key: "wrong" }, "get_overview"))).kind, "unauthorized");
 });
 
-test("JSON-RPC errors are server errors", async () => {
+test("a tool this WorkTracker doesn't have asks for an update", async () => {
   const error = await failure(callTool({ port, key: KEY }, "no_such_tool"));
-  assert.equal(error.kind, "server");
-  assert.match(error.message, /Unknown tool/);
+  assert.equal(error.kind, "outdated");
+  assert.match(error.message, /Update WorkTracker/);
+});
+
+test("a timed-out write may still have been saved", async () => {
+  const write = await failure(callTool({ port, key: KEY }, "slow_tool", {}, { write: true, timeoutMs: 100 }));
+  assert.equal(write.kind, "unreachable");
+  assert.match(write.message, /may still have saved/);
+  const read = await failure(callTool({ port, key: KEY }, "slow_tool", {}, { timeoutMs: 100 }));
+  assert.doesNotMatch(read.message, /saved/);
 });
 
 test("nothing listening is unreachable", async () => {
