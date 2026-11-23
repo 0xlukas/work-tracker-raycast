@@ -11,7 +11,7 @@ WorkTracker's store (`~/Library/Application Support/WorkTracker/WorkTracker.stor
 
 ## Testing
 
-Never test against the real WorkTracker. Its server is on port 47615; the live tests refuse that port and its key.
+Never test against the real WorkTracker. Its server is on port 47615. The live tests only run when the port and key they're given (trimmed) are the test build's own (`defaults read com.worktracker.app.test …`) and not the installed app's; they then pass that connection explicitly, so nothing falls back to the installed app, and they write only on days in 2099.
 
 Test build (its own data folder, preferences and sync folder):
 
@@ -26,7 +26,7 @@ WORKTRACKER_TEST_PORT=47616 WORKTRACKER_TEST_KEY=$(defaults read com.worktracker
 
 Add made-up data to the test build through its MCP server (projects, entries, absences, calls). The live tests need at least one project and clean up what they add. Quit the test app and `git worktree remove` the folder afterwards.
 
-To try the commands in Raycast against the test build, set the extension's **Assistant Key** and **Port** preferences to the test build's, and clear them afterwards.
+To try the commands in Raycast against the test build, set the extension's **Assistant Key** and **Port** preferences (both; one alone is refused) to the test build's, and clear them afterwards.
 
 ## Building
 

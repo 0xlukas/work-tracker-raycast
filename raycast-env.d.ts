@@ -8,9 +8,9 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 type ExtensionPreferences = {
-  /** Assistant Key - Leave empty: the extension reads the key from WorkTracker. Only set it to use another WorkTracker build (for example a test build). */
+  /** Assistant Key - Leave empty: the extension reads the key from WorkTracker. Only for another WorkTracker build (for example a test build); set Port too. */
   "serverKey"?: string,
-  /** Port - Leave empty: the extension reads the port from WorkTracker (47615 by default). */
+  /** Port - Leave empty: the extension reads the port from WorkTracker (47615 by default). Only with Assistant Key, for another WorkTracker build. */
   "serverPort"?: string
 }
 

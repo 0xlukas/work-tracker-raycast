@@ -1,7 +1,5 @@
-// Stands in for @raycast/api when the tests run outside Raycast.
+// Stands in for @raycast/api when the tests run outside Raycast. No preferences are set:
+// the live tests pass their connection explicitly (setExplicitConnection).
 export function getPreferenceValues() {
-  return {
-    serverKey: process.env.WORKTRACKER_TEST_KEY ?? "",
-    serverPort: process.env.WORKTRACKER_TEST_PORT ?? "",
-  };
+  return { serverKey: "", serverPort: "" };
 }

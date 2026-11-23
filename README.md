@@ -26,7 +26,7 @@ On each Mac:
 
 That's all. The extension reads the server's port and key from WorkTracker's preferences (`defaults read com.worktracker.app assistantServerPort` / `assistantServerToken`), so **New Key** in WorkTracker needs nothing here. If the server is off, WorkTracker isn't running, the key is refused or WorkTracker is too old for a tool, each command says so and offers **Open WorkTracker**. If WorkTracker doesn't answer a change in time, the message says it may still have been saved, so check before trying again.
 
-The extension's preferences (**Assistant Key**, **Port**) are only for pointing it at another WorkTracker build, such as a test build. Leave them empty otherwise.
+The extension's preferences (**Assistant Key**, **Port**) are only for pointing it at another WorkTracker build, such as a test build: set both, or leave both empty. A port alone is refused, so the installed app's key never goes to another port.
 
 ### Installing into Raycast
 

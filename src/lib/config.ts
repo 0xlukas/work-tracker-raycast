@@ -26,10 +26,44 @@ export function parsePort(text: string | undefined): number | undefined {
 }
 
 /**
+ * The extension's override of WorkTracker's port and key, for another build such as a
+ * test build. Both together or neither: a port alone would send the installed app's key
+ * to whatever listens there. Values are trimmed, as typed into Raycast's preferences.
+ */
+export function parseOverride(serverKey: string | undefined, serverPort: string | undefined): Connection | undefined {
+  const key = serverKey?.trim() ?? "";
+  const portText = serverPort?.trim() ?? "";
+  if (!key && !portText) return undefined;
+  if (!key || !portText) {
+    throw new WorkTrackerError(
+      "Set both Assistant Key and Port in the extension's preferences, or leave both empty to use WorkTracker's own.",
+      "server",
+    );
+  }
+  const port = parsePort(portText);
+  if (port === undefined) {
+    throw new WorkTrackerError(
+      `The port "${portText}" in the extension's preferences isn't valid. Use 1024–65535, or leave it empty.`,
+      "server",
+    );
+  }
+  return { port, key };
+}
+
+let explicit: Connection | undefined;
+
+/** Use exactly this connection, never WorkTracker's preferences (for the live tests). */
+export function setExplicitConnection(connection: Connection | undefined) {
+  explicit = connection;
+  cached = undefined;
+}
+
+/**
  * Where WorkTracker's assistant server listens and its key. Read from WorkTracker's own
- * preferences (read only), unless the extension's preferences override them.
+ * preferences (read only), unless the extension's preferences override both.
  */
 export async function resolveConnection(): Promise<Connection> {
+  if (explicit) return explicit;
   // A view makes several calls at once; read the preferences once for all of them.
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.connection;
   const connection = await readConnection();
@@ -42,29 +76,19 @@ let cached: { connection: Connection; at: number } | undefined;
 
 async function readConnection(): Promise<Connection> {
   const preferences = getPreferenceValues<Preferences>();
-  const keyOverride = preferences.serverKey?.trim();
-  const portOverride = preferences.serverPort?.trim();
-  if (portOverride && parsePort(portOverride) === undefined) {
-    throw new WorkTrackerError(
-      `The port "${portOverride}" in the extension's preferences isn't valid. Use 1024–65535, or leave it empty.`,
-      "server",
-    );
-  }
+  const override = parseOverride(preferences.serverKey, preferences.serverPort);
+  if (override) return override;
 
-  const [enabled, storedKey, storedPort] = await Promise.all([
-    keyOverride ? Promise.resolve(undefined) : readDefault("assistantServerEnabled"),
-    keyOverride ? Promise.resolve(undefined) : readDefault("assistantServerToken"),
-    portOverride ? Promise.resolve(undefined) : readDefault("assistantServerPort"),
+  const [enabled, key, port] = await Promise.all([
+    readDefault("assistantServerEnabled"),
+    readDefault("assistantServerToken"),
+    readDefault("assistantServerPort"),
   ]);
-  const key = keyOverride || storedKey;
-  if (!keyOverride && (enabled !== "1" || !key)) {
+  if (enabled !== "1" || !key) {
     throw new WorkTrackerError(
       "Turn on WorkTracker › Settings › Assistants › “Let AI assistants use Work Tracker”.",
       "off",
     );
   }
-  return {
-    port: parsePort(portOverride) ?? parsePort(storedPort) ?? DEFAULT_PORT,
-    key: key ?? "",
-  };
+  return { port: parsePort(port) ?? DEFAULT_PORT, key };
 }

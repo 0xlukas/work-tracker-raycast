@@ -73,7 +73,7 @@
       "type": "password",
       "required": false,
       "title": "Assistant Key",
-      "description": "Leave empty: the extension reads the key from WorkTracker. Only set it to use another WorkTracker build (for example a test build)."
+      "description": "Leave empty: the extension reads the key from WorkTracker. Only for another WorkTracker build (for example a test build); set Port too."
     },
     {
       "name": "serverPort",
@@ -81,7 +81,7 @@
       "required": false,
       "title": "Port",
       "placeholder": "47615",
-      "description": "Leave empty: the extension reads the port from WorkTracker (47615 by default)."
+      "description": "Leave empty: the extension reads the port from WorkTracker (47615 by default). Only with Assistant Key, for another WorkTracker build."
     }
   ],
   "dependencies": {
